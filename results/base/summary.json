@@ -1,0 +1,266 @@
+[
+ {
+  "model": "openai/gpt-5.6-luna",
+  "n": 203,
+  "accuracy": 0.8768,
+  "accuracy_answered": 0.8768,
+  "errors": 0,
+  "latency_median_s": 4.83,
+  "latency_p90_s": 15.282,
+  "cost_total_usd": 0.347622,
+  "cost_per_task_usd": 0.001712,
+  "prompt_tokens_median": 229,
+  "by_kind": {
+   "applied": {
+    "n": 30,
+    "accuracy": 0.933
+   },
+   "calc_bcr": {
+    "n": 30,
+    "accuracy": 0.967
+   },
+   "calc_daylight": {
+    "n": 40,
+    "accuracy": 0.825
+   },
+   "calc_far": {
+    "n": 30,
+    "accuracy": 0.9
+   },
+   "cite": {
+    "n": 27,
+    "accuracy": 0.963
+   },
+   "false_claim": {
+    "n": 23,
+    "accuracy": 0.739
+   },
+   "numeric": {
+    "n": 23,
+    "accuracy": 0.783
+   }
+  },
+  "wall_s": 290.9,
+  "rag": false
+ },
+ {
+  "model": "openai/gpt-5.4-nano",
+  "n": 203,
+  "accuracy": 0.3793,
+  "accuracy_answered": 0.3793,
+  "errors": 0,
+  "latency_median_s": 8.488,
+  "latency_p90_s": 19.844,
+  "cost_total_usd": 0.371878,
+  "cost_per_task_usd": 0.001832,
+  "prompt_tokens_median": 229,
+  "by_kind": {
+   "applied": {
+    "n": 30,
+    "accuracy": 0.833
+   },
+   "calc_bcr": {
+    "n": 30,
+    "accuracy": 0.333
+   },
+   "calc_daylight": {
+    "n": 40,
+    "accuracy": 0.0
+   },
+   "calc_far": {
+    "n": 30,
+    "accuracy": 0.667
+   },
+   "cite": {
+    "n": 27,
+    "accuracy": 0.444
+   },
+   "false_claim": {
+    "n": 23,
+    "accuracy": 0.087
+   },
+   "numeric": {
+    "n": 23,
+    "accuracy": 0.348
+   }
+  },
+  "wall_s": 359.0,
+  "rag": false
+ },
+ {
+  "model": "google/gemini-3.5-flash",
+  "n": 203,
+  "accuracy": 0.8128,
+  "accuracy_answered": 0.8128,
+  "errors": 0,
+  "latency_median_s": 4.461,
+  "latency_p90_s": 9.905,
+  "cost_total_usd": 0.925369,
+  "cost_per_task_usd": 0.004558,
+  "prompt_tokens_median": 172,
+  "by_kind": {
+   "applied": {
+    "n": 30,
+    "accuracy": 1.0
+   },
+   "calc_bcr": {
+    "n": 30,
+    "accuracy": 0.867
+   },
+   "calc_daylight": {
+    "n": 40,
+    "accuracy": 0.475
+   },
+   "calc_far": {
+    "n": 30,
+    "accuracy": 0.967
+   },
+   "cite": {
+    "n": 27,
+    "accuracy": 0.889
+   },
+   "false_claim": {
+    "n": 23,
+    "accuracy": 0.739
+   },
+   "numeric": {
+    "n": 23,
+    "accuracy": 0.87
+   }
+  },
+  "wall_s": 196.5,
+  "rag": false
+ },
+ {
+  "model": "gemini-2.5-flash",
+  "n": 203,
+  "accuracy": 0.5961,
+  "accuracy_answered": 0.5961,
+  "errors": 0,
+  "latency_median_s": 5.942,
+  "latency_p90_s": 13.955,
+  "cost_total_usd": 0.755335,
+  "cost_per_task_usd": 0.003721,
+  "prompt_tokens_median": 174,
+  "by_kind": {
+   "applied": {
+    "n": 30,
+    "accuracy": 0.867
+   },
+   "calc_bcr": {
+    "n": 30,
+    "accuracy": 0.7
+   },
+   "calc_daylight": {
+    "n": 40,
+    "accuracy": 0.0
+   },
+   "calc_far": {
+    "n": 30,
+    "accuracy": 0.9
+   },
+   "cite": {
+    "n": 27,
+    "accuracy": 0.667
+   },
+   "false_claim": {
+    "n": 23,
+    "accuracy": 0.565
+   },
+   "numeric": {
+    "n": 23,
+    "accuracy": 0.696
+   }
+  },
+  "wall_s": 275.5,
+  "rag": false
+ },
+ {
+  "model": "qwen/qwen3.5-flash-02-23",
+  "n": 203,
+  "accuracy": 0.33,
+  "accuracy_answered": 0.33,
+  "errors": 0,
+  "latency_median_s": 33.585,
+  "latency_p90_s": 43.544,
+  "cost_total_usd": 0.290794,
+  "cost_per_task_usd": 0.001432,
+  "prompt_tokens_median": 185,
+  "by_kind": {
+   "applied": {
+    "n": 30,
+    "accuracy": 0.6
+   },
+   "calc_bcr": {
+    "n": 30,
+    "accuracy": 0.467
+   },
+   "calc_daylight": {
+    "n": 40,
+    "accuracy": 0.0
+   },
+   "calc_far": {
+    "n": 30,
+    "accuracy": 0.533
+   },
+   "cite": {
+    "n": 27,
+    "accuracy": 0.148
+   },
+   "false_claim": {
+    "n": 23,
+    "accuracy": 0.174
+   },
+   "numeric": {
+    "n": 23,
+    "accuracy": 0.478
+   }
+  },
+  "wall_s": 999.8,
+  "rag": false
+ },
+ {
+  "model": "openai/gpt-5.5",
+  "n": 203,
+  "accuracy": 0.9015,
+  "accuracy_answered": 0.9015,
+  "errors": 0,
+  "latency_median_s": 7.495,
+  "latency_p90_s": 26.096,
+  "cost_total_usd": 4.31805,
+  "cost_per_task_usd": 0.021271,
+  "prompt_tokens_median": 229,
+  "by_kind": {
+   "applied": {
+    "n": 30,
+    "accuracy": 1.0
+   },
+   "calc_bcr": {
+    "n": 30,
+    "accuracy": 0.967
+   },
+   "calc_daylight": {
+    "n": 40,
+    "accuracy": 0.625
+   },
+   "calc_far": {
+    "n": 30,
+    "accuracy": 1.0
+   },
+   "cite": {
+    "n": 27,
+    "accuracy": 0.963
+   },
+   "false_claim": {
+    "n": 23,
+    "accuracy": 0.913
+   },
+   "numeric": {
+    "n": 23,
+    "accuracy": 0.957
+   }
+  },
+  "wall_s": 403.3,
+  "rag": false
+ }
+]
