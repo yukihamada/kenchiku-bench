@@ -590,7 +590,7 @@ a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-of
 <p class="note" data-ja="これは今回の203問での観測で、他の法令・他のモデルにそのまま当てはまる保証はありません。同じ手順を自分の条文で回せば、同じ形で確かめられます。" data-en="These are observations on these 203 tasks; they do not automatically transfer to other statutes or models. Running the same procedure on your own corpus tests it the same way.">これは今回の203問での観測で、他の法令・他のモデルにそのまま当てはまる保証はありません。同じ手順を自分の条文で回せば、同じ形で確かめられます。</p>
 <div class="cta">
 <p><strong data-ja="自分の条文で、同じ検査を回す" data-en="Run the same check on your own articles">自分の条文で、同じ検査を回す</strong></p>
-<p data-ja="203問のJSONと採点コードをそのまま使えます。モデルIDを差し替えれば、同じ採点で別のモデルを比べられます。" data-en="The 203-task JSON and the grader are reusable as-is. Swap the model ID to compare another model under identical grading.">203問のJSONと採点コードをそのまま使えます。モデルIDを差し替えれば、同じ採点で別のモデルを比べられます。</p>
+<p data-ja="203問と採点理由はJSONでそのまま検証できます。採点コードは非公開のため、同じ採点で別モデルを比べたい場合は個別に共有します。" data-en="The 203 tasks and their grading reasons can be checked directly in the JSON. The grader is private; ask us if you want to compare another model under identical grading.">203問と採点理由はJSONでそのまま検証できます。採点コードは非公開のため、同じ採点で別モデルを比べたい場合は個別に共有します。</p>
 <p class="cta-links"><a class="btn" href="/blog-assets/kenchiku-bench-20261101.json" data-ja="証跡JSONを開く" data-en="Open the evidence JSON">証跡JSONを開く</a>
 <span class="muted-note" data-ja="採点コードは非公開リポジトリ（github.com/yukihamada/kenchiku-bench）にあり、必要な場合は個別に共有します" data-en="The grader lives in a private repository (github.com/yukihamada/kenchiku-bench); it can be shared on request">採点コードは非公開リポジトリ（github.com/yukihamada/kenchiku-bench）にあり、必要な場合は個別に共有します</span>
 <a href="/docs" data-ja="APIドキュメント" data-en="API docs">APIドキュメント</a>
