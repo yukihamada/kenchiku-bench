@@ -21,6 +21,7 @@ ROOT = os.path.dirname(HERE)
 SLUG = "kenchiku-benchmark"
 ASSET = "kenchiku-bench-20261101"
 DATE = "2026-11-01"
+UPDATED = "2026-11-02"
 
 ORDER = [
     ("openai/gpt-5.5", "GPT-5.5"),
@@ -437,7 +438,7 @@ a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-of
 <meta name="twitter:title" content="同じ質問を40回したら、答えが2種類返ってきた。">
 <meta name="twitter:description" content="203問×6モデル。条文を渡すと最大+55ポイント。同一リクエスト40回のうち15回が即答・全問不正解。">
 <meta name="twitter:image" content="https://teai.io/og-kenchiku-benchmark.png">
-<script type="application/ld+json">{{"@context":"https://schema.org","@type":"Article","headline":"同じ質問を40回したら、答えが2種類返ってきた。","description":"建築基準法203問を6モデルで実測した記録。条文を渡すと最大+55.2ポイント、同一リクエスト40回のうち15回が即答で全問不正解。","datePublished":"{DATE}","dateModified":"{DATE}","inLanguage":"ja","url":"https://teai.io/blog/{SLUG}","image":"https://teai.io/og-kenchiku-benchmark.png","author":{{"@type":"Organization","name":"teai.io","url":"https://teai.io"}},"publisher":{{"@type":"Organization","name":"teai.io","url":"https://teai.io"}}}}</script>
+<script type="application/ld+json">{{"@context":"https://schema.org","@type":"Article","headline":"同じ質問を40回したら、答えが2種類返ってきた。","description":"建築基準法203問を6モデルで実測した記録。条文を渡すと最大+55.2ポイント、同一リクエスト40回のうち15回が即答で全問不正解。","datePublished":"{DATE}","dateModified":"{UPDATED}","inLanguage":"ja","url":"https://teai.io/blog/{SLUG}","image":"https://teai.io/og-kenchiku-benchmark.png","author":{{"@type":"Organization","name":"teai.io","url":"https://teai.io"}},"publisher":{{"@type":"Organization","name":"teai.io","url":"https://teai.io"}}}}</script>
 <style>{css}</style>
 </head><body>
 <a class="skip" href="#results" data-ja="本文へ移動" data-en="Skip to content">本文へ移動</a>
