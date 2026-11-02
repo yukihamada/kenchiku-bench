@@ -410,6 +410,10 @@ footer{padding:36px 0 64px;color:var(--muted);font-size:14px}
 .btn{display:inline-block;background:var(--accent);color:#04120b;font-weight:700;text-decoration:none;padding:10px 18px;border-radius:999px}
 .btn:hover,.btn:focus-visible{filter:brightness(1.08)}
 .muted-note{font-size:12px;color:var(--muted);display:block;margin-top:4px}
+.cta-mid{border-left:3px solid var(--accent);background:#0d1a15;border-radius:0 10px 10px 0;padding:14px 18px;margin:24px 0 0}
+.cta-mid p{margin:4px 0}
+.cta-mid .lead{font-weight:700}
+.cta-mid .links{display:flex;flex-wrap:wrap;gap:8px 20px;margin-top:8px;font-size:14px}
 .related{list-style:none;padding:0;display:flex;flex-wrap:wrap;gap:10px 24px}
 .related li{margin:0}
 a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:3px}
@@ -484,6 +488,12 @@ a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-of
 {bar_rows}
 </figure>
 <p data-ja="203問・temperature 0・各条件1回。安い順ではなく、今回測った6モデルをそのまま並べています。差が最も大きかったのは Gemini 2.5 Flash（+39.4ポイント）と GPT-5.4 Nano（+55.2ポイント）でした。" data-en="203 tasks, temperature 0, one run per condition. Ordered as measured, not by price. The largest gains were Gemini 2.5 Flash (+39.4 points) and GPT-5.4 Nano (+55.2 points).">203問・temperature 0・各条件1回。安い順ではなく、今回測った6モデルをそのまま並べています。差が最も大きかったのは Gemini 2.5 Flash（+39.4ポイント）と GPT-5.4 Nano（+55.2ポイント）でした。</p>
+
+<div class="cta-mid">
+<p class="lead" data-ja="条文を渡すかどうかで、同じモデルの正解率が最大 +55.2 ポイント動きました。" data-en="Supplying the articles moved the same model's accuracy by up to +55.2 points.">条文を渡すかどうかで、同じモデルの正解率が最大 +55.2 ポイント動きました。</p>
+<p data-ja="モデルを替える前に、渡し方を替える方が効く場合があります。teai は同じAPI・同じ料金体系で6モデルを切り替えられるので、自分の条文で同じ比較を回せます。" data-en="Before switching models, changing what you supply can matter more. teai runs all six models behind one API and one price list, so you can repeat this comparison on your own articles.">モデルを替える前に、渡し方を替える方が効く場合があります。teai は同じAPI・同じ料金体系で6モデルを切り替えられるので、自分の条文で同じ比較を回せます。</p>
+<p class="links"><a href="/pricing" data-ja="料金とモデル一覧 →" data-en="Pricing and models →">料金とモデル一覧 →</a><a href="/blog-assets/{ASSET}.json" data-ja="この比較の生データ（JSON）→" data-en="Raw data for this comparison (JSON) →">この比較の生データ（JSON）→</a></p>
+</div>
 </section>
 
 <section id="by-kind">
@@ -533,6 +543,12 @@ a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-of
 {rep_body}
 </tbody></table></div>
 <p class="note" data-ja="1回目と2回目は同じ203問・同じプロンプト・同じ採点コードです。差は日時だけ（qwen は 00:32 と 09:41 に実行）。他4モデルは各1回のみで、分散は測れていません。" data-en="Both runs used the same 203 tasks, prompts and grader. Only the time differed (qwen at 00:32 and 09:41). The other four models were measured once, so their variance is unknown.">1回目と2回目は同じ203問・同じプロンプト・同じ採点コードです。差は日時だけ（qwen は 00:32 と 09:41 に実行）。他4モデルは各1回のみで、分散は測れていません。</p>
+
+<div class="cta-mid">
+<p class="lead" data-ja="同じ入力でも、返る応答の型が変わることがあります。" data-en="The same input can come back in a different shape.">同じ入力でも、返る応答の型が変わることがあります。</p>
+<p data-ja="1回の測定でモデルを決めず、同じ条件で複数回まわしてから比べてください。この記事の203問と採点理由はJSONで公開しているので、そのまま自分の条件に当てられます。" data-en="Do not pick a model from a single run; repeat under identical conditions before comparing. The 203 tasks and their grading reasons are public in JSON, so you can apply them to your own conditions.">1回の測定でモデルを決めず、同じ条件で複数回まわしてから比べてください。この記事の203問と採点理由はJSONで公開しているので、そのまま自分の条件に当てられます。</p>
+<p class="links"><a href="/blog-assets/{ASSET}.json" data-ja="203問と全応答を見る（JSON）→" data-en="See the 203 tasks and every response (JSON) →">203問と全応答を見る（JSON）→</a><a href="/docs" data-ja="APIドキュメント →" data-en="API docs →">APIドキュメント →</a></p>
+</div>
 </section>
 
 <section id="notes">
