@@ -1,0 +1,46 @@
+[
+ {
+  "model": "qwen/qwen3.5-flash-02-23",
+  "n": 203,
+  "accuracy": 0.3399,
+  "accuracy_answered": 0.3399,
+  "errors": 0,
+  "latency_median_s": 0.715,
+  "latency_p90_s": 47.376,
+  "cost_total_usd": 0.130724,
+  "cost_per_task_usd": 0.000644,
+  "prompt_tokens_median": 187,
+  "by_kind": {
+   "applied": {
+    "n": 30,
+    "accuracy": 0.533
+   },
+   "calc_bcr": {
+    "n": 30,
+    "accuracy": 0.567
+   },
+   "calc_daylight": {
+    "n": 40,
+    "accuracy": 0.0
+   },
+   "calc_far": {
+    "n": 30,
+    "accuracy": 0.7
+   },
+   "cite": {
+    "n": 27,
+    "accuracy": 0.148
+   },
+   "false_claim": {
+    "n": 23,
+    "accuracy": 0.13
+   },
+   "numeric": {
+    "n": 23,
+    "accuracy": 0.348
+   }
+  },
+  "wall_s": 498.9,
+  "rag": false
+ }
+]

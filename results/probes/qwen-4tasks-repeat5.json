@@ -1,0 +1,194 @@
+{
+ "probe": "four-tasks-repeat",
+ "model": "qwen/qwen3.5-flash-02-23",
+ "protocol": "4問を各5回。temperature=0、max_tokens=12000、RAG（同一の条文コンテキスト）",
+ "measured_at": "2026-11-01",
+ "tasks": [
+  {
+   "id": "day-000",
+   "kind": "calc_daylight",
+   "question": "建築基準法施行令第20条2項により、次の開口部の採光補正係数を計算せよ。\n・用途地域: 準住居地域\n・開口部から隣地境界線（または対向部）までの水平距離 D = 0.53 m\n・開口部の中心までの垂直距離 H = 1.5 m\n・開口部は道路に面しない\n・外側に幅90cm以上の縁側がある\n小数第3位までで答えよ（例: 1.234）。",
+   "answer": "0.504"
+  },
+  {
+   "id": "far-003",
+   "kind": "calc_far",
+   "question": "建築基準法第52条により、次の建築物の容積率の限度を求めよ。\n・用途地域: 工業専用地域\n・都市計画で定められた容積率: 40/10\n・前面道路の幅員: 11 m（特定道路の加算は考慮しない）\n割合を分数（例: 40/10）で答えよ。",
+   "answer": "40/10"
+  },
+  {
+   "id": "bcr-006",
+   "kind": "calc_bcr",
+   "question": "建築基準法第53条により、次の建築物の建蔽率の限度を求めよ。\n・用途地域: 準住居地域\n・都市計画で定められた建蔽率: 5/10\n・準防火地域内、耐火建築物、角地ではない\n割合を分数（例: 6/10）で答えよ。",
+   "answer": "6/10"
+  },
+  {
+   "id": "cite-hou-20",
+   "kind": "cite",
+   "question": "建築基準法の条文を特定したい。次の内容はどの条文に規定されているか。「建築基準法」第〇条の形で条番号まで答えよ。\n\n内容: 構造耐力",
+   "answer": "建築基準法第20条"
+  }
+ ],
+ "runs": [
+  {
+   "id": "day-000",
+   "run": 0,
+   "correct": true,
+   "pred": "0.504",
+   "completion_tokens": 3287,
+   "latency_s": 17.82
+  },
+  {
+   "id": "day-000",
+   "run": 1,
+   "correct": true,
+   "pred": "0.504",
+   "completion_tokens": 2164,
+   "latency_s": 15.63
+  },
+  {
+   "id": "day-000",
+   "run": 2,
+   "correct": true,
+   "pred": "0.504",
+   "completion_tokens": 3004,
+   "latency_s": 15.95
+  },
+  {
+   "id": "day-000",
+   "run": 3,
+   "correct": true,
+   "pred": "0.504",
+   "completion_tokens": 4742,
+   "latency_s": 27.71
+  },
+  {
+   "id": "day-000",
+   "run": 4,
+   "correct": true,
+   "pred": "0.504",
+   "completion_tokens": 2101,
+   "latency_s": 15.99
+  },
+  {
+   "id": "far-003",
+   "run": 0,
+   "correct": true,
+   "pred": "40/10",
+   "completion_tokens": 5256,
+   "latency_s": 25.01
+  },
+  {
+   "id": "far-003",
+   "run": 1,
+   "correct": true,
+   "pred": "40/10",
+   "completion_tokens": 5518,
+   "latency_s": 39.28
+  },
+  {
+   "id": "far-003",
+   "run": 2,
+   "correct": true,
+   "pred": "40/10",
+   "completion_tokens": 6288,
+   "latency_s": 32.38
+  },
+  {
+   "id": "far-003",
+   "run": 3,
+   "correct": true,
+   "pred": "40/10",
+   "completion_tokens": 4526,
+   "latency_s": 29.39
+  },
+  {
+   "id": "far-003",
+   "run": 4,
+   "correct": true,
+   "pred": "40/10",
+   "completion_tokens": 4528,
+   "latency_s": 25.92
+  },
+  {
+   "id": "bcr-006",
+   "run": 0,
+   "correct": true,
+   "pred": "6/10",
+   "completion_tokens": 2505,
+   "latency_s": 15.34
+  },
+  {
+   "id": "bcr-006",
+   "run": 1,
+   "correct": true,
+   "pred": "6/10",
+   "completion_tokens": 2022,
+   "latency_s": 11.93
+  },
+  {
+   "id": "bcr-006",
+   "run": 2,
+   "correct": true,
+   "pred": "6/10",
+   "completion_tokens": 2296,
+   "latency_s": 11.85
+  },
+  {
+   "id": "bcr-006",
+   "run": 3,
+   "correct": true,
+   "pred": "6/10",
+   "completion_tokens": 2664,
+   "latency_s": 11.96
+  },
+  {
+   "id": "bcr-006",
+   "run": 4,
+   "correct": true,
+   "pred": "6/10",
+   "completion_tokens": 2104,
+   "latency_s": 10.21
+  },
+  {
+   "id": "cite-hou-20",
+   "run": 0,
+   "correct": true,
+   "pred": "建築基準法第 20 条",
+   "completion_tokens": 2298,
+   "latency_s": 18.14
+  },
+  {
+   "id": "cite-hou-20",
+   "run": 1,
+   "correct": true,
+   "pred": "建築基準法第 20 条",
+   "completion_tokens": 935,
+   "latency_s": 5.01
+  },
+  {
+   "id": "cite-hou-20",
+   "run": 2,
+   "correct": true,
+   "pred": "建築基準法第 20 条",
+   "completion_tokens": 566,
+   "latency_s": 3.31
+  },
+  {
+   "id": "cite-hou-20",
+   "run": 3,
+   "correct": false,
+   "pred": "\n</think>\n\n第 20",
+   "completion_tokens": 18830,
+   "latency_s": 49.48
+  },
+  {
+   "id": "cite-hou-20",
+   "run": 4,
+   "correct": true,
+   "pred": "建築基準法第 20 条",
+   "completion_tokens": 581,
+   "latency_s": 3.91
+  }
+ ]
+}

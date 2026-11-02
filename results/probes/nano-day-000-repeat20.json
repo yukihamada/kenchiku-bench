@@ -1,0 +1,170 @@
+{
+ "model": "openai/gpt-5.4-nano",
+ "task": "day-000",
+ "task_id": "day-000",
+ "question": "建築基準法施行令第20条2項により、次の開口部の採光補正係数を計算せよ。\n・用途地域: 準住居地域\n・開口部から隣地境界線（または対向部）までの水平距離 D = 0.53 m\n・開口部の中心までの垂直距離 H = 1.5 m\n・開口部は道路に面しない\n・外側に幅90cm以上の縁側がある\n小数第3位までで答えよ（例: 1.234）。",
+ "answer": "0.504",
+ "runs": [
+  {
+   "run": 0,
+   "correct": true,
+   "pred": "0.504",
+   "completion_tokens": 646,
+   "latency_s": 7.76,
+   "request_id": "chatcmpl-6271a5104b254f948891b6c574ed42b8"
+  },
+  {
+   "run": 1,
+   "correct": true,
+   "pred": "0.504",
+   "completion_tokens": 597,
+   "latency_s": 8.05,
+   "request_id": "chatcmpl-abfb805c2ee04216bd86b7976a7397c9"
+  },
+  {
+   "run": 2,
+   "correct": true,
+   "pred": "0.504",
+   "completion_tokens": 815,
+   "latency_s": 6.41,
+   "request_id": "chatcmpl-85b5e4033820408f914ecd4d61df1a87"
+  },
+  {
+   "run": 3,
+   "correct": true,
+   "pred": "0.504",
+   "completion_tokens": 981,
+   "latency_s": 8.92,
+   "request_id": "chatcmpl-14db100dfde64e2cb2f769bf87c63aeb"
+  },
+  {
+   "run": 4,
+   "correct": true,
+   "pred": "0.504",
+   "completion_tokens": 712,
+   "latency_s": 6.37,
+   "request_id": "chatcmpl-31996b56935f41a2ae5b4003f3126db0"
+  },
+  {
+   "run": 5,
+   "correct": true,
+   "pred": "0.504",
+   "completion_tokens": 714,
+   "latency_s": 6.98,
+   "request_id": "chatcmpl-c1ecc292866f4c3a97bff82706a29981"
+  },
+  {
+   "run": 6,
+   "correct": true,
+   "pred": "0.504",
+   "completion_tokens": 625,
+   "latency_s": 5.18,
+   "request_id": "chatcmpl-6ce44b46c3df4fd1ada59d0341a4de9b"
+  },
+  {
+   "run": 7,
+   "correct": true,
+   "pred": "0.504",
+   "completion_tokens": 451,
+   "latency_s": 4.48,
+   "request_id": "chatcmpl-21d1a6a5794f495ea1942d2a19845542"
+  },
+  {
+   "run": 8,
+   "correct": true,
+   "pred": "0.504",
+   "completion_tokens": 665,
+   "latency_s": 6.42,
+   "request_id": "chatcmpl-ccc6d47b73a1487eb5a8b8e8b082987d"
+  },
+  {
+   "run": 9,
+   "correct": true,
+   "pred": "0.504",
+   "completion_tokens": 532,
+   "latency_s": 4.56,
+   "request_id": "chatcmpl-c52afc7b4635491f8318a0e00fcc053a"
+  },
+  {
+   "run": 10,
+   "correct": true,
+   "pred": "0.504",
+   "completion_tokens": 531,
+   "latency_s": 4.34,
+   "request_id": "chatcmpl-0f40acfc8f6f4f9c87963f95637e2ea3"
+  },
+  {
+   "run": 11,
+   "correct": true,
+   "pred": "0.504",
+   "completion_tokens": 572,
+   "latency_s": 5.02,
+   "request_id": "chatcmpl-96de306fec204d4085f4b9b94b03c923"
+  },
+  {
+   "run": 12,
+   "correct": true,
+   "pred": "0.504",
+   "completion_tokens": 804,
+   "latency_s": 5.14,
+   "request_id": "chatcmpl-e722c84dabbc408a9c5f7ddd37de0abb"
+  },
+  {
+   "run": 13,
+   "correct": true,
+   "pred": "0.504",
+   "completion_tokens": 980,
+   "latency_s": 7.2,
+   "request_id": "chatcmpl-c230ec4808af4107b3da43db113ce430"
+  },
+  {
+   "run": 14,
+   "correct": true,
+   "pred": "0.504",
+   "completion_tokens": 690,
+   "latency_s": 5.43,
+   "request_id": "chatcmpl-38217e1455b84a38a012006ed7cb8ae1"
+  },
+  {
+   "run": 15,
+   "correct": true,
+   "pred": "0.504",
+   "completion_tokens": 594,
+   "latency_s": 4.52,
+   "request_id": "chatcmpl-e37deb849de6461088eb18ea26f3e8ec"
+  },
+  {
+   "run": 16,
+   "correct": true,
+   "pred": "0.504",
+   "completion_tokens": 785,
+   "latency_s": 6.49,
+   "request_id": "chatcmpl-4c775421ef88435eb847468f8fb134cc"
+  },
+  {
+   "run": 17,
+   "correct": true,
+   "pred": "0.504",
+   "completion_tokens": 650,
+   "latency_s": 7.61,
+   "request_id": "chatcmpl-4c7177e12be5413ebb21e51a62951f2a"
+  },
+  {
+   "run": 18,
+   "correct": true,
+   "pred": "0.504",
+   "completion_tokens": 842,
+   "latency_s": 6.32,
+   "request_id": "chatcmpl-99268bf6661f476b8c0b94be317d83f8"
+  },
+  {
+   "run": 19,
+   "correct": true,
+   "pred": "0.504",
+   "completion_tokens": 699,
+   "latency_s": 5.76,
+   "request_id": "chatcmpl-48584febefda419abddc9259398ed35f"
+  }
+ ],
+ "started": "2026-11-01"
+}
