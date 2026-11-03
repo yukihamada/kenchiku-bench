@@ -18,7 +18,7 @@ def main() -> int:
     md = open(os.path.join(ROOT, "drafts", "chatgpt-app-10q.md"), encoding="utf-8").read()
     ids = json.load(open(os.path.join(ROOT, "drafts", "chatgpt-app-10q.ids.json")))
     tasks = {json.loads(l)["id"]: json.loads(l) for l in open(os.path.join(ROOT, "data", "tasks.jsonl"), encoding="utf-8")}
-    model = (re.search(r"^MODEL:\s*(.*)$", md, re.M) or [None, ""])[1].strip()
+    model = (re.search(r"^MODEL:[ \t]*(.*)$", md, re.M) or [None, ""])[1].strip()
     rows = []
     for i, tid in enumerate(ids, 1):
         m = re.search(rf"^ANSWER_{i}:\s*\n(.*?)(?=^---|\Z)", md, re.M | re.S)
