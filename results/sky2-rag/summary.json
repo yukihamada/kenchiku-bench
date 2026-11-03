@@ -1,0 +1,102 @@
+[
+ {
+  "model": "openai/gpt-5.6-luna",
+  "n": 20,
+  "accuracy": 0.15,
+  "accuracy_answered": 0.5,
+  "errors": 14,
+  "latency_median_s": 37.913,
+  "latency_p90_s": 173.82,
+  "cost_total_usd": 0.054228,
+  "cost_per_task_usd": 0.009038,
+  "prompt_tokens_median": 2031,
+  "by_kind": {
+   "calc_sky_grade": {
+    "n": 10,
+    "accuracy": 0.1
+   },
+   "sky_points_2road": {
+    "n": 10,
+    "accuracy": 0.2
+   }
+  },
+  "wall_s": 578.3,
+  "rag": true,
+  "tools": false
+ },
+ {
+  "model": "openai/gpt-5.5",
+  "n": 20,
+  "accuracy": 0.0,
+  "accuracy_answered": 0.0,
+  "errors": 20,
+  "latency_median_s": null,
+  "latency_p90_s": null,
+  "cost_total_usd": null,
+  "cost_per_task_usd": null,
+  "prompt_tokens_median": null,
+  "by_kind": {
+   "calc_sky_grade": {
+    "n": 10,
+    "accuracy": 0.0
+   },
+   "sky_points_2road": {
+    "n": 10,
+    "accuracy": 0.0
+   }
+  },
+  "wall_s": 387.9,
+  "rag": true,
+  "tools": false
+ },
+ {
+  "model": "google/gemini-3.5-flash",
+  "n": 20,
+  "accuracy": 0.45,
+  "accuracy_answered": 0.5,
+  "errors": 2,
+  "latency_median_s": 41.077,
+  "latency_p90_s": 248.677,
+  "cost_total_usd": 0.751814,
+  "cost_per_task_usd": 0.041767,
+  "prompt_tokens_median": 1540,
+  "by_kind": {
+   "calc_sky_grade": {
+    "n": 10,
+    "accuracy": 0.0
+   },
+   "sky_points_2road": {
+    "n": 10,
+    "accuracy": 0.9
+   }
+  },
+  "wall_s": 698.5,
+  "rag": true,
+  "tools": false
+ },
+ {
+  "model": "openai/gpt-5.4-nano",
+  "n": 20,
+  "accuracy": 0.3,
+  "accuracy_answered": 0.3,
+  "errors": 0,
+  "latency_median_s": 39.99,
+  "latency_p90_s": 85.926,
+  "cost_total_usd": 0.126373,
+  "cost_per_task_usd": 0.006319,
+  "prompt_tokens_median": 1868,
+  "by_kind": {
+   "calc_sky_grade": {
+    "n": 10,
+    "accuracy": 0.0
+   },
+   "sky_points_2road": {
+    "n": 10,
+    "accuracy": 0.6
+   }
+  },
+  "wall_s": 166.1,
+  "rag": true,
+  "tools": false
+ }
+]

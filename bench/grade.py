@@ -198,6 +198,24 @@ def grade(task: dict, pred: str) -> tuple[bool, str]:
         ok = said_wrong and num_ok and (want_art in arts)
         return ok, f"wrong={said_wrong} num={num_ok} art={want_art in arts}"
 
+    if kind == "calc_sky_grade":
+        # 「ANSWER: 72.4%」を優先、なければ最後の％
+        m = re.search(r"ANSWER\s*[:：]\s*(\d+(?:\.\d+)?)\s*[%％]?", p)
+        pcts = [m.group(1)] if m else re.findall(r"(\d+(?:\.\d+)?)\s*[%％]", p.replace(",", ""))
+        if not pcts:
+            return False, "no-percent"
+        v = float(pcts[-1])
+        want = float(task["answer_norm"].split(":")[1])
+        return abs(v - want) <= 0.3, f"want={want:.2f} got={v}"
+
+    if kind == "sky_points_2road":
+        want = task["answer_norm"].split(":")[1]
+        m = re.findall(r"ANSWER\s*[:：]\s*(\d+)\s*[,，、]\s*(\d+)\s*[,，、]\s*(\d+)\s*[,，、]\s*(\d+)", p)
+        if not m:
+            return False, "no-answer-line"
+        got = ",".join(m[-1])
+        return got == want, f"want={want} got={got}"
+
     if kind == "calc_sky":
         # 「%」の付いた数値を優先（途中計算の数値を拾わない）。最後に出たものを答えとみなす。
         pcts = re.findall(r"(\d+(?:\.\d+)?)\s*[%％]", p.replace(",", ""))

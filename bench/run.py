@@ -35,10 +35,11 @@ TOOLS = [
     {"type": "function", "function": {
         "name": "sky_ratio",
         "description": "建築基準法施行令第135条の5の天空率を計算する。建物は直方体の集まり。"
-                       "座標はm、高さは測定点（路面の中心）からの高さ。戻り値は天空率（％）。",
+                       "座標はm。h と z は同じ基準面からの高さ。戻り値は天空率（％）。",
         "parameters": {"type": "object", "properties": {
             "x": {"type": "number", "description": "測定点のx"},
             "y": {"type": "number", "description": "測定点のy"},
+            "z": {"type": "number", "description": "測定点の高さ（boxes の h と同じ基準。省略時0）"},
             "boxes": {"type": "array", "items": {"type": "object", "properties": {
                 "x0": {"type": "number"}, "x1": {"type": "number"},
                 "y0": {"type": "number"}, "y1": {"type": "number"},
@@ -59,7 +60,8 @@ def call_tool(name: str, args: dict) -> str:
     try:
         if name == "sky_ratio":
             boxes = [{k: float(b[k]) for k in ("x0", "x1", "y0", "y1", "h")} for b in args["boxes"]]
-            return json.dumps({"sky_ratio_pct": round(sky_ratio(float(args["x"]), float(args["y"]), boxes) * 100, 3)})
+            return json.dumps({"sky_ratio_pct": round(sky_ratio(float(args["x"]), float(args["y"]), boxes,
+                                                                pz=float(args.get("z") or 0)) * 100, 3)})
         if name == "sky_measurement_points":
             n, gap = measurement_points(float(args["frontage"]), float(args["road_width"]))
             return json.dumps({"points": n, "spacing_m": round(gap, 4)})
