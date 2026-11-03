@@ -12,6 +12,8 @@
 
   3) 計画建築物と道路高さ制限適合建築物の比較（令135条の6第1項第1号）
      python3 sky_tool.py compare --frontage 12 --road 6 --plan 1,11,2,14,15 --conf 0,12,0,6,7.5 --conf 0,12,6,12,15
+     適合建築物を自動で作る（勾配・適用距離・後退距離から段状に近似）:
+     python3 sky_tool.py compare --frontage 12 --road 6 --depth 15 --slope 1.25 --apply 20 --setback 1 --plan 1,11,2,14,15
 
   4) AIに質問して、計算はこのツールにさせる（teai.io の API キーが必要）
      export TEAI_API_KEY=...
@@ -75,6 +77,21 @@ def sky_ratio(px: float, py: float, boxes: list[dict], pz: float = 0.0, steps: i
             best = max(best, h * h / (h * h + s * s))
         blocked += 0.5 * best * dphi
     return (math.pi - blocked) / math.pi
+
+
+def conforming_boxes(frontage: float, depth: float, road: float, slope: float = 1.25,
+                     apply_dist: float = 20.0, setback: float = 0.0, step: float = 0.5) -> tuple[list[dict], float]:
+    """道路高さ制限に適合する建築物を、奥行方向 step m ごとの段状の直方体で近似する（斜線の下に収まる側に丸める）。
+    高さの限度 = 勾配 ×（前面道路の反対側の境界線からの水平距離 + 後退距離）。後退距離 s のとき、
+    敷地の y=s から先に建て、y の位置の限度は slope×(road + s + y)。適用距離は反対側の境界線から測る。
+    単純化: 敷地は間口×奥行の長方形・前面道路1本・地盤は平坦・用途地域の境目なし。"""
+    y_end = min(depth, apply_dist - road)
+    boxes, y = [], setback
+    while y < y_end - 1e-9:
+        y2 = min(y + step, y_end)
+        boxes.append(dict(x0=0.0, x1=frontage, y0=y, y1=y2, h=slope * (road + setback + y)))
+        y = y2
+    return boxes, y_end
 
 
 def measurement_points(frontage: float, road_width: float) -> tuple[int, float]:
@@ -207,8 +224,19 @@ def main(argv: list[str]) -> int:
                 (plan if a == "--plan" else conf).append(dict(x0=x0, x1=x1, y0=y0, y1=y1, h=h))
             else:
                 kv[a] = next(it)
+        if "--depth" in kv and not conf and "--frontage" in kv and "--road" in kv:
+            # 道路高さ制限適合建築物を自動で作る（間口×奥行の敷地いっぱい、後退距離・勾配・適用距離から段状に）
+            frontage, road = float(kv["--frontage"]), float(kv["--road"])
+            conf, y_end = conforming_boxes(frontage, float(kv["--depth"]), road,
+                                           float(kv.get("--slope", 1.25)), float(kv.get("--apply", 20)),
+                                           float(kv.get("--setback", 0)))
+            # 比べるのは道路高さ制限の適用範囲内の部分だけ（令135条の6第1項第1号）
+            plan = [dict(b, y1=min(b["y1"], y_end)) for b in plan if b["y0"] < y_end]
+            print(f"適合建築物を自動作成: 勾配{float(kv.get('--slope', 1.25)):g}・適用距離{float(kv.get('--apply', 20)):g}m・"
+                  f"後退{float(kv.get('--setback', 0)):g}m → 奥行 y={float(kv.get('--setback', 0)):g}〜{y_end:g}m を{len(conf)}段")
         if not plan or not conf or "--frontage" not in kv or "--road" not in kv:
-            sys.exit("例: python3 sky_tool.py compare --frontage 12 --road 6 --plan 1,11,2,14,15 --conf 0,12,0,6,7.5 --conf 0,12,6,12,15")
+            sys.exit("例: python3 sky_tool.py compare --frontage 12 --road 6 --plan 1,11,2,14,15 --conf 0,12,0,6,7.5 --conf 0,12,6,12,15\n"
+                     "  または適合建築物を自動で: --frontage 12 --road 6 --depth 15 [--slope 1.25 --apply 20 --setback 0] --plan ...")
         frontage, road = float(kv["--frontage"]), float(kv["--road"])
         n, gap = measurement_points(frontage, road)
         worst = None

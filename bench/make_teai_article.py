@@ -309,10 +309,13 @@ python3 sky_tool.py points --frontage 12 --road 6
 # 計画建築物と道路高さ制限適合建築物を、測定点ごとに比べる（--plan / --conf は何個でも）
 python3 sky_tool.py compare --frontage 12 --road 6 --plan 1,11,2,14,15 --conf 0,12,0,6,7.5 --conf 0,12,6,12,15
 
+# 適合建築物を自動で作って比べる（勾配・適用距離・後退距離から段状に近似）
+python3 sky_tool.py compare --frontage 12 --road 6 --depth 15 --slope 1.25 --apply 20 --setback 1 --plan 1,11,2,14,15
+
 # AIに質問し、計算はツールにさせる
 export TEAI_API_KEY=...
 python3 sky_tool.py ask "{esc(demo['question'])}"</code></pre>
-<p data-ja="compare は、測定点ごとに計画建築物と適合建築物の天空率を並べ、最も不利な点で判定します（出力例の最後の行：「判定: 不適合（最も不利な点 P1、差 -1.159ポイント）」）。最後のコマンドを実際に動かした記録です。AIは質問から座標を読み取ってツールを1回呼び、ツールの値をそのまま答えました。" data-en="compare lists both sky factors per point and judges on the worst point (example last line: “判定: 不適合（最も不利な点 P1、差 -1.159ポイント）”). Here is a real run of the last command. The AI read the coordinates from the question, called the tool once, and answered with the tool's value.">compare は、測定点ごとに計画建築物と適合建築物の天空率を並べ、最も不利な点で判定します（出力例の最後の行：「判定: 不適合（最も不利な点 P1、差 -1.159ポイント）」）。最後のコマンドを実際に動かした記録です。AIは質問から座標を読み取ってツールを1回呼び、ツールの値をそのまま答えました。</p>
+<p data-ja="compare は、測定点ごとに計画建築物と適合建築物の天空率を並べ、最も不利な点で判定します。--depth を付けると、適合建築物を勾配・適用距離・後退距離から自動で作ります（敷地は長方形・前面道路1本・地盤は平坦の場合）（出力例の最後の行：「判定: 不適合（最も不利な点 P1、差 -1.159ポイント）」）。最後のコマンドを実際に動かした記録です。AIは質問から座標を読み取ってツールを1回呼び、ツールの値をそのまま答えました。" data-en="compare lists both sky factors per point and judges on the worst point; with --depth it builds the conforming building automatically from slope, application distance and setback (rectangular lot, one fronting road, flat ground) (example last line: “判定: 不適合（最も不利な点 P1、差 -1.159ポイント）”). Here is a real run of the last command. The AI read the coordinates from the question, called the tool once, and answered with the tool's value.">compare は、測定点ごとに計画建築物と適合建築物の天空率を並べ、最も不利な点で判定します。--depth を付けると、適合建築物を勾配・適用距離・後退距離から自動で作ります（敷地は長方形・前面道路1本・地盤は平坦の場合）（出力例の最後の行：「判定: 不適合（最も不利な点 P1、差 -1.159ポイント）」）。最後のコマンドを実際に動かした記録です。AIは質問から座標を読み取ってツールを1回呼び、ツールの値をそのまま答えました。</p>
 <pre><code>AIが呼んだツール：{esc(tool_line)}
 AIの答え：天空率 {esc(demo_val)}%（根拠：建築基準法施行令第135条の5）</code></pre>
 </details>
