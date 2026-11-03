@@ -5,6 +5,7 @@
   python3 bench/run.py --models gpt-4.1-nano,claude-haiku-5-5 --limit 20
   python3 bench/run.py --models google/gemini-3.5-flash --rag --tag rag
   python3 bench/run.py --models gpt-4.1-nano --kind calc_daylight
+  python3 bench/run.py --models openai/gpt-5.6-luna --tasks data/tasks_sky.jsonl --rag --tools --tag sky-tools
 
 出力: results/<tag>/<model>.jsonl （1行1タスク、採点・レイテンシ・usage入り）
        results/<tag>/summary.json
@@ -27,6 +28,44 @@ ROOT = os.path.dirname(HERE)
 sys.path.insert(0, ROOT)
 
 from bench.grade import grade  # noqa: E402
+from bench.sky import measurement_points, sky_ratio  # noqa: E402
+
+# --tools のときモデルに渡す計算ツール（天空率は条文を読むだけでは答えが出ないため）
+TOOLS = [
+    {"type": "function", "function": {
+        "name": "sky_ratio",
+        "description": "建築基準法施行令第135条の5の天空率を計算する。建物は直方体の集まり。"
+                       "座標はm、高さは測定点（路面の中心）からの高さ。戻り値は天空率（％）。",
+        "parameters": {"type": "object", "properties": {
+            "x": {"type": "number", "description": "測定点のx"},
+            "y": {"type": "number", "description": "測定点のy"},
+            "boxes": {"type": "array", "items": {"type": "object", "properties": {
+                "x0": {"type": "number"}, "x1": {"type": "number"},
+                "y0": {"type": "number"}, "y1": {"type": "number"},
+                "h": {"type": "number", "description": "高さm"}},
+                "required": ["x0", "x1", "y0", "y1", "h"]}}},
+            "required": ["x", "y", "boxes"]}}},
+    {"type": "function", "function": {
+        "name": "sky_measurement_points",
+        "description": "令第135条の9第1項の道路高さ制限の測定点の最少数と間隔を返す（直線の前面道路1本）。",
+        "parameters": {"type": "object", "properties": {
+            "frontage": {"type": "number", "description": "敷地が前面道路に面する長さm"},
+            "road_width": {"type": "number", "description": "前面道路の幅員m"}},
+            "required": ["frontage", "road_width"]}}},
+]
+
+
+def call_tool(name: str, args: dict) -> str:
+    try:
+        if name == "sky_ratio":
+            boxes = [{k: float(b[k]) for k in ("x0", "x1", "y0", "y1", "h")} for b in args["boxes"]]
+            return json.dumps({"sky_ratio_pct": round(sky_ratio(float(args["x"]), float(args["y"]), boxes) * 100, 3)})
+        if name == "sky_measurement_points":
+            n, gap = measurement_points(float(args["frontage"]), float(args["road_width"]))
+            return json.dumps({"points": n, "spacing_m": round(gap, 4)})
+    except Exception as e:  # 引数の誤りはモデルに返して直させる
+        return json.dumps({"error": f"{type(e).__name__}: {e}"}, ensure_ascii=False)
+    return json.dumps({"error": f"unknown tool {name}"})
 
 TASKS = os.path.join(ROOT, "data", "tasks.jsonl")
 ARTICLES = os.path.join(ROOT, "corpus", "articles.jsonl")
@@ -237,13 +276,16 @@ def rag_context(hits: list[dict], max_chars: int = 6000) -> str:
 # ---------------------------------------------------------------- API
 
 def chat(model: str, messages: list[dict], max_tokens: int = 2500,
-         temperature: float = 0.0, retries: int = 4) -> dict:
-    body = json.dumps({
+         temperature: float = 0.0, retries: int = 4, tools: list | None = None) -> dict:
+    payload = {
         "model": model,
         "messages": messages,
         "max_tokens": max_tokens,
         "temperature": temperature,
-    }).encode()
+    }
+    if tools:
+        payload["tools"] = tools
+    body = json.dumps(payload).encode()
     last = None
     for attempt in range(retries):
         req = urllib.request.Request(
@@ -257,6 +299,7 @@ def chat(model: str, messages: list[dict], max_tokens: int = 2500,
             dt = time.time() - t0
             msg = j["choices"][0]["message"]
             return {
+                "msg": msg,
                 "text": msg.get("content") or "",
                 "usage": j.get("usage", {}),
                 "latency_s": dt,
@@ -291,7 +334,7 @@ def build_context(task: dict, retriever: Retriever, articles: list[dict]) -> str
 
 
 def run_one(task: dict, model: str, retriever: Retriever | None, pricing: dict,
-            articles: list[dict] | None = None) -> dict:
+            articles: list[dict] | None = None, use_tools: bool = False) -> dict:
     system = SYSTEM_RAG if retriever else SYSTEM
     user = task["question"]
     if retriever:
@@ -303,8 +346,31 @@ def run_one(task: dict, model: str, retriever: Retriever | None, pricing: dict,
         # calc_daylight 40件中39件が finish=length の空回答になった。RAG で条文が
         # 長いと思考も伸びるため、余裕を持たせる（実測: luna は 2500 で false_claim
         # 2件が空回答）。
-        r = chat(model, [{"role": "system", "content": system},
-                         {"role": "user", "content": user}], max_tokens=12000)
+        msgs = [{"role": "system", "content": system + (
+            "\n\n計算ツールが使える場合は、手計算せずツールの結果を使って答えよ。" if use_tools else "")},
+                {"role": "user", "content": user}]
+        usage = {"prompt_tokens": 0, "completion_tokens": 0}
+        t0 = time.time()
+        n_calls = 0
+        for _turn in range(8):
+            r = chat(model, msgs, max_tokens=12000, tools=TOOLS if use_tools else None)
+            for k in usage:
+                usage[k] += (r["usage"] or {}).get(k, 0)
+            tcs = r["msg"].get("tool_calls") or []
+            if not tcs:
+                break
+            msgs.append({"role": "assistant", "content": r["msg"].get("content") or "", "tool_calls": tcs})
+            for tc in tcs:
+                n_calls += 1
+                try:
+                    args = json.loads(tc["function"].get("arguments") or "{}")
+                except json.JSONDecodeError:
+                    args = {}
+                msgs.append({"role": "tool", "tool_call_id": tc["id"],
+                             "content": call_tool(tc["function"]["name"], args)})
+        r["usage"] = usage
+        r["latency_s"] = time.time() - t0
+        rec["tool_calls"] = n_calls
     except Exception as e:
         rec.update({"correct": False, "error": str(e)[:300], "latency_s": None})
         return rec
@@ -368,13 +434,15 @@ def main() -> int:
     ap.add_argument("--tag", default="")
     ap.add_argument("--concurrency", type=int, default=4)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--tasks", default=TASKS, help="問題ファイル（既定: data/tasks.jsonl）")
+    ap.add_argument("--tools", action="store_true", help="天空率などの計算ツールを渡す")
     a = ap.parse_args()
 
     if not KEY:
         print("TEAI_API_KEY が未設定です", file=sys.stderr)
         return 2
 
-    tasks = [json.loads(l) for l in open(TASKS, encoding="utf-8")]
+    tasks = [json.loads(l) for l in open(a.tasks, encoding="utf-8")]
     if a.kind:
         tasks = [t for t in tasks if t["kind"] == a.kind]
     if a.limit:
@@ -395,7 +463,7 @@ def main() -> int:
         rows: list[dict] = []
         path = os.path.join(outdir, re.sub(r"[^A-Za-z0-9._-]", "_", model) + ".jsonl")
         with ThreadPoolExecutor(max_workers=a.concurrency) as ex, open(path, "w") as f:
-            futs = {ex.submit(run_one, t, model, retriever, pricing, articles): t for t in tasks}
+            futs = {ex.submit(run_one, t, model, retriever, pricing, articles, a.tools): t for t in tasks}
             for i, fut in enumerate(as_completed(futs), 1):
                 r = fut.result()
                 rows.append(r)
@@ -407,6 +475,7 @@ def main() -> int:
         s = summarize(rows, model)
         s["wall_s"] = round(time.time() - t0, 1)
         s["rag"] = bool(a.rag)
+        s["tools"] = bool(a.tools)
         summaries.append(s)
         print(json.dumps(s, ensure_ascii=False, indent=1), flush=True)
 

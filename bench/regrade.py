@@ -23,9 +23,10 @@ from bench.grade import grade  # noqa: E402
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--tag", required=True)
+    ap.add_argument("--tasks", default=os.path.join(ROOT, "data", "tasks.jsonl"))
     a = ap.parse_args()
 
-    tasks = {t["id"]: t for t in (json.loads(l) for l in open(os.path.join(ROOT, "data", "tasks.jsonl"), encoding="utf-8"))}
+    tasks = {t["id"]: t for t in (json.loads(l) for l in open(a.tasks, encoding="utf-8"))}
     out = []
     for path in sorted(glob.glob(os.path.join(ROOT, "results", a.tag, "*.jsonl"))):
         rows = [json.loads(l) for l in open(path, encoding="utf-8")]

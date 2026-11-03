@@ -35,6 +35,40 @@ python3 bench/regrade.py --tag rag # 採点基準を変えたとき、保存済�
 | false_claim | 23 | 数値を1つ改変した条文の誤り検出 |
 | applied | 30 | 敷地から延べ面積・建築面積の上限を算定（2段計算） |
 
+## 天空率（50問・別ファイル `data/tasks_sky.jsonl`）
+
+天空率は条文を読むだけでは答えが出ない（立体を想定半球に投影した面積が要る）ため、
+正解は `bench/sky.py` の計算から作る。方位角0.01°刻みの正射影積分で、無限長の壁の解析解と
+小数第6位まで一致、格子による別解法とも一致することを `selftest.py` で確かめている。
+
+| kind | 件数 | 内容 |
+|---|---|---|
+| calc_sky | 20 | 直方体1〜2棟の天空率（令135条の5、±0.3ポイント） |
+| sky_compare | 20 | 計画建築物と道路高さ制限適合建築物を3測定点で比較（令135条の6）。適合判定＋最も不利な測定点 |
+| sky_points | 10 | 道路高さ制限の測定点の最少数と間隔（令135条の9） |
+
+```bash
+python3 bench/tasks_sky.py   # data/tasks_sky.jsonl を生成
+python3 bench/run.py --models openai/gpt-5.6-luna --tasks data/tasks_sky.jsonl --rag --tag sky-rag
+python3 bench/run.py --models openai/gpt-5.6-luna --tasks data/tasks_sky.jsonl --rag --tools --tag sky-tools
+```
+
+`--tools` はモデルに計算ツール `sky_ratio`（天空率）と `sky_measurement_points`（測定点）を渡す。
+ツール定義は `bench/run.py` の `TOOLS`、実体は `bench/sky.py`。自分のアプリで使うときもこの2つをそのまま渡せばよい。
+
+実測（2026-11-03・条文あり・temperature 0・各1回）:
+
+| モデル | ツールなし | ツールあり | 1問あたり（ツールあり） | 中央値（ツールあり） |
+|---|---|---|---|---|
+| openai/gpt-5.6-luna | 52% | 98% | $0.0035 | 7.7秒 |
+| google/gemini-3.5-flash | 34% | 100% | $0.0096 | 7.8秒 |
+| openai/gpt-5.4-nano | 16% | 100% | $0.0018 | 5.0秒 |
+| openai/gpt-5.5 | 未確定（50問中36問が上流502） | 100% | $0.0343 | 4.0秒 |
+
+対象外: 地盤の高低差（令135条の9第4項）、敷地の一部だけが適用範囲になる場合の切り取り、
+斜面状の適合建築物、2以上の前面道路、隣地・北側の天空率。実際の敷地での天空率は
+bim.house の `/tochi/tateru`（`mu-house/src/tateru_engine.rs`）が別に計算している。
+
 ## RAG
 
 外部依存なしの簡易ハイブリッド検索（BM25 + 見出し完全一致 + 5-gram 包含一致）。

@@ -198,4 +198,38 @@ def grade(task: dict, pred: str) -> tuple[bool, str]:
         ok = said_wrong and num_ok and (want_art in arts)
         return ok, f"wrong={said_wrong} num={num_ok} art={want_art in arts}"
 
+    if kind == "calc_sky":
+        # 「%」の付いた数値を優先（途中計算の数値を拾わない）。最後に出たものを答えとみなす。
+        pcts = re.findall(r"(\d+(?:\.\d+)?)\s*[%％]", p.replace(",", ""))
+        if not pcts:
+            return False, "no-percent"
+        v = float(pcts[-1])
+        want = float(task["answer_norm"].split(":")[1])
+        return abs(v - want) <= 0.3, f"want={want:.2f} got={v}"
+
+    if kind == "sky_compare":
+        _, rest = task["answer_norm"].split(":")
+        want_ok, want_p = rest.split("#")
+        m = re.search(r"判定\s*[:：]?\s*(不適合|適合)", p)
+        verdict = m.group(1) if m else ("不適合" if "不適合" in p else ("適合" if "適合" in p else None))
+        mp = re.search(r"(?:最も|最小|小さい|不利)[^P\n]{0,40}P\s*([1-3])", p) or re.search(r"P\s*([1-3])\s*$", p)
+        got_p = mp.group(1) if mp else None
+        v_ok = verdict == ("適合" if want_ok == "1" else "不適合")
+        p_ok = got_p == want_p
+        return (v_ok and p_ok), f"verdict={verdict} point=P{got_p} want={want_ok}#P{want_p}"
+
+    if kind == "sky_points":
+        _, rest = task["answer_norm"].split(":")
+        want_n, want_gap = rest.split("#")
+        # 「7点」「数：7」「7\n5.00」のどれでも読む（実測: 単位なしの正答を落としていた）。
+        # 条番号（135・9・1項）を拾わないよう、条文の引用部分は除いてから数値を読む。
+        q = re.sub(r"第?[0-9一二三四五六七八九十百]+条(?:の[0-9一二三四五六七八九十]+)?(?:第?[0-9一二三四五六七八九十]+項)?", " ", p.replace("*", ""))
+        mn = (re.search(r"(\d+)\s*(?:点|箇所|か所|カ所)", q)
+              or re.search(r"数[^0-9\n]{0,6}(\d+)(?![.\d])", q)
+              or re.search(r"^\s*(\d+)\s*$", q, re.M))
+        nums = [float(x) for x in re.findall(r"(\d+\.\d+|\d+)\s*(?:m|ｍ|メートル)?", q)]
+        n_ok = bool(mn) and int(mn.group(1)) == int(want_n)
+        g_ok = any(abs(x - float(want_gap)) <= 0.011 for x in nums if x != int(want_n) or float(want_gap) == int(want_n))
+        return (n_ok and g_ok), f"n={mn.group(1) if mn else None} gaps={nums[:4]} want={want_n}#{float(want_gap):.2f}"
+
     return False, f"unknown-kind:{kind}"

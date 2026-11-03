@@ -59,6 +59,16 @@ def main() -> int:
             miss.append(t["id"])
     check(f"根拠条文がコンテキストに入る ({len(TASKS)}件中 {len(miss)}件欠落)", not miss)
 
+    # 天空率: 無限長の壁の解析解・別解法（格子）・測定点の数
+    from bench.sky import infinite_wall_sky, measurement_points, sky_ratio, sky_ratio_grid
+    for d, h in ((4, 10), (6, 20), (10, 5)):
+        wall = [dict(x0=-1e5, x1=1e5, y0=d, y1=d + 10, h=h)]
+        check(f"天空率 無限長の壁 d={d} h={h}", abs(sky_ratio(0, 0, wall) - infinite_wall_sky(d, h)) < 1e-5)
+    box = [dict(x0=0, x1=10, y0=6, y1=16, h=12)]
+    check("天空率 積分と格子が一致", abs(sky_ratio(2, 0, box) - sky_ratio_grid(2, 0, box, 500)) < 1e-3)
+    check("天空率 測定点 間口12m・幅員6m=5点3m", measurement_points(12, 6) == (5, 3.0))
+    check("天空率 測定点 間口2.5m・幅員6m=両端2点", measurement_points(2.5, 6)[0] == 2)
+
     print("\nall checks passed")
     return 0
 
