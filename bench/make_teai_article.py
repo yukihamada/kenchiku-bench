@@ -161,9 +161,17 @@ def build_sky(teai: str, skip_asset: bool) -> tuple[str, str]:
     n = len(tasks)
     rag, tools = summary("sky-rag"), summary("sky-tools")
 
+    # 上流の通信エラーが1割を超えたモデルの手計算は「測定できず」とし、範囲・内訳から外す
+    unmeasured = {m for m, _ in SKY_ORDER if rag[m]["errors"] > n * 0.1}
+    um_labels = "・".join(label for m, label in SKY_ORDER if m in unmeasured)
+    um_ja = (um_labels + "の手計算は、上流の通信エラーで半数以上の問題に応答が返らなかったため、正解率を出していません（種別の表は、応答があった問題だけの正解数）。") if um_labels else ""
+    um_en = (" " + um_labels + " by hand is not scored: upstream errors left most requests without a response (the per-type table counts only answered tasks).") if um_labels else ""
+
     # 手計算の失敗の内訳（出力上限で途中終了／「不明」／答えたが誤り／通信エラー）
     fail = {"length": 0, "unknown": 0, "wrong": 0, "error": 0}
     for m, _ in SKY_ORDER:
+        if m in unmeasured:
+            continue
         for r in load("sky-rag", m).values():
             if r.get("correct"):
                 continue
@@ -206,23 +214,37 @@ def build_sky(teai: str, skip_asset: bool) -> tuple[str, str]:
         want_ok, want_p = t["answer_norm"].split(":")[1].split("#")
         agree += (str(int(ok)) == want_ok and str(imin) == want_p)
 
+    def hand_cell(m: str) -> str:
+        if m in unmeasured:
+            return (f'<td class="num" data-ja="測定できず（{rag[m]["errors"]}/{n}問が上流エラー）" '
+                    f'data-en="not measured ({rag[m]["errors"]}/{n} upstream errors)">'
+                    f'測定できず（{rag[m]["errors"]}/{n}問が上流エラー）</td>')
+        return f'<td class="num">{pct(rag[m]["accuracy"])}</td>'
+
+    def kind_cell(m: str, k: str) -> str:
+        if m in unmeasured:
+            rows_k = [r for r in load("sky-rag", m).values() if r["kind"] == k and not r.get("error")]
+            hand = f'{sum(1 for r in rows_k if r["correct"])}/{len(rows_k)}' if rows_k else "—"
+        else:
+            hand = pct(rag[m]["by_kind"][k]["accuracy"], 0)
+        return f'<td class="num">{hand} → {pct(tools[m]["by_kind"][k]["accuracy"], 0)}</td>'
+
     rows = []
     for m, label in SKY_ORDER:
         r, t = rag[m], tools[m]
         rows.append(
             f'<tr><td>{label}<br><span class="id">{m}</span></td>'
-            f'<td class="num">{pct(r["accuracy"])}</td>'
+            f'{hand_cell(m)}'
             f'<td class="num"><strong>{pct(t["accuracy"])}</strong></td>'
             f'<td class="num">${t["cost_per_task_usd"]:.4f}</td>'
             f'<td class="num">{t["latency_median_s"]:.1f}s</td></tr>')
     kind_rows = []
     for k, (ja, en) in SKY_KIND.items():
-        cells = "".join(f'<td class="num">{pct(rag[m]["by_kind"][k]["accuracy"], 0)} → {pct(tools[m]["by_kind"][k]["accuracy"], 0)}</td>'
-                        for m, _ in SKY_ORDER)
+        cells = "".join(kind_cell(m, k) for m, _ in SKY_ORDER)
         cnt = sum(1 for x in tasks if x["kind"] == k)
         kind_rows.append(f'<tr><td data-ja="{ja}（{cnt}問）" data-en="{en} ({cnt})">{ja}（{cnt}問）</td>{cells}</tr>')
-    lo_r = min(rag[m]["accuracy"] for m, _ in SKY_ORDER)
-    hi_r = max(rag[m]["accuracy"] for m, _ in SKY_ORDER)
+    lo_r = min(rag[m]["accuracy"] for m, _ in SKY_ORDER if m not in unmeasured)
+    hi_r = max(rag[m]["accuracy"] for m, _ in SKY_ORDER if m not in unmeasured)
     lo_t = min(tools[m]["accuracy"] for m, _ in SKY_ORDER)
     hi_t = max(tools[m]["accuracy"] for m, _ in SKY_ORDER)
     cost = sum(rag[m]["cost_total_usd"] + tools[m]["cost_total_usd"] for m, _ in SKY_ORDER)
@@ -263,7 +285,7 @@ def build_sky(teai: str, skip_asset: bool) -> tuple[str, str]:
 <tbody>
 {krows}
 </tbody></table></div>
-<p data-ja="測定点の数と間隔は条文の読み取りだけで決まるので、手計算でも多くのモデルが解けました。崩れたのは数値を出す2種です。手計算の失敗{sum(fail.values())}件の内訳は、出力の上限まで計算して答えに届かなかったもの{fail['length']}件、「不明」と答えたもの{fail['unknown']}件、答えたが数値や判定が違ったもの{fail['wrong']}件、通信エラー{fail['error']}件でした。" data-en="Measurement points follow from reading the article alone, so many models solved them by hand. The two numeric types broke down. Of {sum(fail.values())} hand-calculation failures, {fail['length']} ran out of output before reaching an answer, {fail['unknown']} answered “unknown”, {fail['wrong']} gave a wrong value or verdict, and {fail['error']} were transport errors.">測定点の数と間隔は条文の読み取りだけで決まるので、手計算でも多くのモデルが解けました。崩れたのは数値を出す2種です。手計算の失敗{sum(fail.values())}件の内訳は、出力の上限まで計算して答えに届かなかったもの{fail['length']}件、「不明」と答えたもの{fail['unknown']}件、答えたが数値や判定が違ったもの{fail['wrong']}件、通信エラー{fail['error']}件でした。</p>
+<p data-ja="測定点の数と間隔は条文の読み取りだけで決まるので、手計算でも多くのモデルが解けました。崩れたのは数値を出す2種です。{um_labels + "を除く" if um_labels else ""}手計算の失敗{sum(fail.values())}件の内訳は、出力の上限まで計算して答えに届かなかったもの{fail['length']}件、「不明」と答えたもの{fail['unknown']}件、答えたが数値や判定が違ったもの{fail['wrong']}件、通信エラー{fail['error']}件でした。{um_ja}" data-en="Measurement points follow from reading the article alone, so many models solved them by hand. The two numeric types broke down. Of {sum(fail.values())} hand-calculation failures{" (excluding " + um_labels + ")" if um_labels else ""}, {fail['length']} ran out of output before reaching an answer, {fail['unknown']} answered “unknown”, {fail['wrong']} gave a wrong value or verdict, and {fail['error']} were transport errors.{um_en}">測定点の数と間隔は条文の読み取りだけで決まるので、手計算でも多くのモデルが解けました。崩れたのは数値を出す2種です。{um_labels + "を除く" if um_labels else ""}手計算の失敗{sum(fail.values())}件の内訳は、出力の上限まで計算して答えに届かなかったもの{fail['length']}件、「不明」と答えたもの{fail['unknown']}件、答えたが数値や判定が違ったもの{fail['wrong']}件、通信エラー{fail['error']}件でした。{um_ja}</p>
 <p data-ja="計算ツールは2つだけです。sky_ratio（測定点と直方体の一覧を受け取り天空率を返す）と sky_measurement_points（間口と幅員から測定点を返す）。モデルの仕事は、問題文から座標を読み取ってツールに渡し、結果を比べることに変わります。" data-en="There are only two tools: sky_ratio (takes a point and a list of boxes, returns the sky factor) and sky_measurement_points (returns the points from frontage and road width). The model's job becomes reading coordinates from the question, passing them to the tool and comparing the results.">計算ツールは2つだけです。sky_ratio（測定点と直方体の一覧を受け取り天空率を返す）と sky_measurement_points（間口と幅員から測定点を返す）。モデルの仕事は、問題文から座標を読み取ってツールに渡し、結果を比べることに変わります。</p>
 <p class="note" data-ja="正解の計算は、方位角0.01°刻みの正射影積分です。無限に長い壁の解析解と小数第6位まで一致し、bim.house の天空率エンジン（別実装）とも{len(geo)}形状で最大{d160:.2f}ポイント差（エンジン側を細かくすると{d1200:.2f}ポイント差）、比較問題の判定は{agree}/{cmp_n}で一致しました。対象は平坦な敷地の直方体だけで、地盤の高低差・2以上の前面道路・隣地や北側の天空率は含みません。測定の費用は合計 ${cost:.2f} です。" data-en="Ground truth is an orthographic-projection integral at 0.01° azimuth steps. It matches the closed form for an infinite wall to six decimals, and agrees with bim.house's independent sky-factor engine within {d160:.2f} points across {len(geo)} shapes ({d1200:.2f} at higher engine resolution), with {agree}/{cmp_n} identical verdicts. Scope is boxes on flat sites only; grade differences, multiple fronting roads and side/north sky factors are excluded. Total measurement cost ${cost:.2f}.">正解の計算は、方位角0.01°刻みの正射影積分です。無限に長い壁の解析解と小数第6位まで一致し、bim.house の天空率エンジン（別実装）とも{len(geo)}形状で最大{d160:.2f}ポイント差（エンジン側を細かくすると{d1200:.2f}ポイント差）、比較問題の判定は{agree}/{cmp_n}で一致しました。対象は平坦な敷地の直方体だけで、地盤の高低差・2以上の前面道路・隣地や北側の天空率は含みません。測定の費用は合計 ${cost:.2f} です。</p>
 <p class="links"><a href="/blog-assets/{SKY_ASSET}.json" data-ja="天空率50問の全応答・ツール定義・突き合わせ（JSON）→" data-en="All 50 sky-factor responses, tool definitions and cross-check (JSON) →">天空率50問の全応答・ツール定義・突き合わせ（JSON）→</a></p>

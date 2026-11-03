@@ -31,18 +31,18 @@
  {
   "model": "openai/gpt-5.5",
   "n": 50,
-  "accuracy": 0.28,
-  "accuracy_answered": 1.0,
-  "errors": 36,
-  "latency_median_s": 50.638,
-  "latency_p90_s": 103.493,
-  "cost_total_usd": 1.38859,
-  "cost_per_task_usd": 0.099185,
+  "accuracy": 0.38,
+  "accuracy_answered": 0.95,
+  "errors": 30,
+  "latency_median_s": 42.073,
+  "latency_p90_s": 166.706,
+  "cost_total_usd": 1.26053,
+  "cost_per_task_usd": 0.063026,
   "prompt_tokens_median": 1974,
   "by_kind": {
    "calc_sky": {
     "n": 20,
-    "accuracy": 0.7
+    "accuracy": 0.5
    },
    "sky_compare": {
     "n": 20,
@@ -50,10 +50,10 @@
    },
    "sky_points": {
     "n": 10,
-    "accuracy": 0.0
+    "accuracy": 0.9
    }
   },
-  "wall_s": 396.4,
+  "wall_s": 1748.5,
   "rag": true,
   "tools": false
  },
