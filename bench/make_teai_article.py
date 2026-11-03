@@ -21,7 +21,8 @@ ROOT = os.path.dirname(HERE)
 SLUG = "kenchiku-benchmark"
 ASSET = "kenchiku-bench-20261101"
 DATE = "2026-11-01"
-UPDATED = "2026-11-02"
+UPDATED = "2026-11-03"
+SKY_ASSET = "kenchiku-bench-sky-20261103"
 
 ORDER = [
     ("openai/gpt-5.5", "GPT-5.5"),
@@ -141,6 +142,136 @@ def esc(s: str) -> str:
     return (s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
 
 
+SKY_ORDER = [
+    ("openai/gpt-5.6-luna", "GPT-5.6 Luna"),
+    ("google/gemini-3.5-flash", "Gemini 3.5 Flash"),
+    ("openai/gpt-5.4-nano", "GPT-5.4 Nano"),
+    ("openai/gpt-5.5", "GPT-5.5"),
+]
+SKY_KIND = {"calc_sky": ("天空率の計算", "Sky factor value"),
+            "sky_compare": ("計画と適合建築物の比較", "Planned vs conforming"),
+            "sky_points": ("測定点の数と間隔", "Measurement points")}
+
+
+def build_sky(teai: str, skip_asset: bool) -> tuple[str, str]:
+    """天空率50問（results/sky-rag・sky-tools）の節。数字はすべて保存済みの結果から計算する。"""
+    sys.path.insert(0, ROOT)
+    from bench.sky import sky_ratio
+    tasks = [json.loads(l) for l in open(os.path.join(ROOT, "data", "tasks_sky.jsonl"), encoding="utf-8")]
+    n = len(tasks)
+    rag, tools = summary("sky-rag"), summary("sky-tools")
+
+    # 手計算の失敗の内訳（出力上限で途中終了／「不明」／答えたが誤り／通信エラー）
+    fail = {"length": 0, "unknown": 0, "wrong": 0, "error": 0}
+    for m, _ in SKY_ORDER:
+        for r in load("sky-rag", m).values():
+            if r.get("correct"):
+                continue
+            if r.get("error"):
+                fail["error"] += 1
+            elif r.get("finish") == "length":
+                fail["length"] += 1
+            elif "不明" in (r.get("pred") or "")[-80:]:
+                fail["unknown"] += 1
+            else:
+                fail["wrong"] += 1
+
+    # bim.house の天空率エンジン（Rust・本番と同じ160分割）との突き合わせ
+    rust = {}
+    for line in open(os.path.join(ROOT, "results", "sky-crosscheck", "rust_tateru_engine.tsv"), encoding="utf-8"):
+        k, v160, v1200 = line.rstrip("\n").split("\t")
+        rust[k] = (float(v160), float(v1200))
+    geo = {}
+    for t in tasks:
+        g = t.get("geometry")
+        if not g:
+            continue
+        if t["kind"] == "calc_sky":
+            geo[t["id"]] = (g["point"], g["boxes"])
+        else:
+            for i, pt in enumerate(g["points"]):
+                geo[f"{t['id']}-P{i+1}-plan"] = (pt, g["plan"])
+                geo[f"{t['id']}-P{i+1}-conf"] = (pt, g["conforming"])
+    ours = {k: sky_ratio(p[0], p[1], b) * 100 for k, (p, b) in geo.items()}
+    d160 = max(abs(ours[k] - rust[k][0]) for k in geo)
+    d1200 = max(abs(ours[k] - rust[k][1]) for k in geo)
+    agree = cmp_n = 0
+    for t in tasks:
+        if t["kind"] != "sky_compare":
+            continue
+        cmp_n += 1
+        diffs = [rust[f"{t['id']}-P{i}-plan"][0] - rust[f"{t['id']}-P{i}-conf"][0] for i in (1, 2, 3)]
+        ok = all(d >= 0 for d in diffs)
+        imin = min(range(3), key=lambda i: diffs[i]) + 1
+        want_ok, want_p = t["answer_norm"].split(":")[1].split("#")
+        agree += (str(int(ok)) == want_ok and str(imin) == want_p)
+
+    rows = []
+    for m, label in SKY_ORDER:
+        r, t = rag[m], tools[m]
+        rows.append(
+            f'<tr><td>{label}<br><span class="id">{m}</span></td>'
+            f'<td class="num">{pct(r["accuracy"])}</td>'
+            f'<td class="num"><strong>{pct(t["accuracy"])}</strong></td>'
+            f'<td class="num">${t["cost_per_task_usd"]:.4f}</td>'
+            f'<td class="num">{t["latency_median_s"]:.1f}s</td></tr>')
+    kind_rows = []
+    for k, (ja, en) in SKY_KIND.items():
+        cells = "".join(f'<td class="num">{pct(rag[m]["by_kind"][k]["accuracy"], 0)} → {pct(tools[m]["by_kind"][k]["accuracy"], 0)}</td>'
+                        for m, _ in SKY_ORDER)
+        cnt = sum(1 for x in tasks if x["kind"] == k)
+        kind_rows.append(f'<tr><td data-ja="{ja}（{cnt}問）" data-en="{en} ({cnt})">{ja}（{cnt}問）</td>{cells}</tr>')
+    lo_r = min(rag[m]["accuracy"] for m, _ in SKY_ORDER)
+    hi_r = max(rag[m]["accuracy"] for m, _ in SKY_ORDER)
+    lo_t = min(tools[m]["accuracy"] for m, _ in SKY_ORDER)
+    hi_t = max(tools[m]["accuracy"] for m, _ in SKY_ORDER)
+    cost = sum(rag[m]["cost_total_usd"] + tools[m]["cost_total_usd"] for m, _ in SKY_ORDER)
+
+    if not skip_asset:
+        out = {"title": "kenchiku-bench 天空率50問", "measured": "2026-11-03",
+               "tasks": tasks,
+               "runs": {tag: {m: list(load(tag, m).values()) for m, _ in SKY_ORDER} for tag in ("sky-rag", "sky-tools")},
+               "summary": {"sky-rag": rag, "sky-tools": tools},
+               "tool_definitions": __import__("bench.run", fromlist=["TOOLS"]).TOOLS,
+               "crosscheck": {"engine": "bim.house tateru_engine.rs", "max_abs_diff_pt_res160": round(d160, 4),
+                              "max_abs_diff_pt_res1200": round(d1200, 4), "compare_agree": f"{agree}/{cmp_n}",
+                              "cases": len(geo)},
+               "commands": ["python3 bench/tasks_sky.py",
+                            "python3 bench/run.py --models <id> --tasks data/tasks_sky.jsonl --rag --tag sky-rag",
+                            "python3 bench/run.py --models <id> --tasks data/tasks_sky.jsonl --rag --tools --tag sky-tools"]}
+        with open(os.path.join(teai, "web", "blog-assets", f"{SKY_ASSET}.json"), "w", encoding="utf-8") as f:
+            json.dump(out, f, ensure_ascii=False)
+
+    tldr = (f'<li data-ja="追試（11/3）：天空率{n}問は、条文を渡しても手計算では{pct(lo_r)}〜{pct(hi_r)}。計算をツールとして渡すと{pct(lo_t)}〜{pct(hi_t)}。" '
+            f'data-en="Follow-up (Nov 3): on {n} sky-factor tasks, hand calculation with the articles scored {pct(lo_r)}–{pct(hi_r)}; given the calculation as a tool, {pct(lo_t)}–{pct(hi_t)}.">'
+            f'追試（11/3）：天空率{n}問は、条文を渡しても手計算では{pct(lo_r)}〜{pct(hi_r)}。計算をツールとして渡すと{pct(lo_t)}〜{pct(hi_t)}。</li>')
+    tbl = "\n".join(rows)
+    krows = "\n".join(kind_rows)
+    heads = "".join(f'<th scope="col" class="num">{label}</th>' for _, label in SKY_ORDER)
+    sec = f"""<section id="sky">
+<h2 data-ja="追試：天空率は、条文を渡しても解けない" data-en="Follow-up: the sky factor is not solved by supplying the articles">追試：天空率は、条文を渡しても解けない</h2>
+<p data-ja="天空率（建築基準法施行令第135条の5〜9）の{n}問を11月3日に追加で測りました。天空率は、建物を想定半球に投影した面積から求めます。条文に書いてあるのは定義と測定点の決め方だけで、数値は立体の計算をしないと出ません。" data-en="On November 3 we added {n} sky-factor tasks (Enforcement Order Articles 135-5 to 135-9). The sky factor comes from the area of the building projected onto a hemisphere. The articles define it and say where to measure; the number itself requires a solid-geometry calculation.">天空率（建築基準法施行令第135条の5〜9）の{n}問を11月3日に追加で測りました。天空率は、建物を想定半球に投影した面積から求めます。条文に書いてあるのは定義と測定点の決め方だけで、数値は立体の計算をしないと出ません。</p>
+<div class="scroll" tabindex="0" role="region" aria-label="表（横にスクロールできます）" data-aria-en="Table (scrolls horizontally)"><table>
+<caption data-ja="天空率{n}問：条文ありの手計算と、計算ツールを渡した場合" data-en="{n} sky-factor tasks: hand calculation with articles vs. with a calculation tool">天空率{n}問：条文ありの手計算と、計算ツールを渡した場合</caption>
+<thead><tr><th scope="col" data-ja="モデル" data-en="Model">モデル</th><th scope="col" class="num" data-ja="手計算" data-en="By hand">手計算</th><th scope="col" class="num" data-ja="計算ツールあり" data-en="With tool">計算ツールあり</th><th scope="col" class="num" data-ja="1問あたり" data-en="Per task">1問あたり</th><th scope="col" class="num" data-ja="中央値" data-en="Median">中央値</th></tr></thead>
+<tbody>
+{tbl}
+</tbody></table></div>
+<div class="scroll" tabindex="0" role="region" aria-label="表（横にスクロールできます）" data-aria-en="Table (scrolls horizontally)"><table>
+<caption data-ja="種別ごとの正解率（手計算 → 計算ツールあり）" data-en="Accuracy by type (by hand → with tool)">種別ごとの正解率（手計算 → 計算ツールあり）</caption>
+<thead><tr><th scope="col" data-ja="種別" data-en="Type">種別</th>{heads}</tr></thead>
+<tbody>
+{krows}
+</tbody></table></div>
+<p data-ja="測定点の数と間隔は条文の読み取りだけで決まるので、手計算でも多くのモデルが解けました。崩れたのは数値を出す2種です。手計算の失敗{sum(fail.values())}件の内訳は、出力の上限まで計算して答えに届かなかったもの{fail['length']}件、「不明」と答えたもの{fail['unknown']}件、答えたが数値や判定が違ったもの{fail['wrong']}件、通信エラー{fail['error']}件でした。" data-en="Measurement points follow from reading the article alone, so many models solved them by hand. The two numeric types broke down. Of {sum(fail.values())} hand-calculation failures, {fail['length']} ran out of output before reaching an answer, {fail['unknown']} answered “unknown”, {fail['wrong']} gave a wrong value or verdict, and {fail['error']} were transport errors.">測定点の数と間隔は条文の読み取りだけで決まるので、手計算でも多くのモデルが解けました。崩れたのは数値を出す2種です。手計算の失敗{sum(fail.values())}件の内訳は、出力の上限まで計算して答えに届かなかったもの{fail['length']}件、「不明」と答えたもの{fail['unknown']}件、答えたが数値や判定が違ったもの{fail['wrong']}件、通信エラー{fail['error']}件でした。</p>
+<p data-ja="計算ツールは2つだけです。sky_ratio（測定点と直方体の一覧を受け取り天空率を返す）と sky_measurement_points（間口と幅員から測定点を返す）。モデルの仕事は、問題文から座標を読み取ってツールに渡し、結果を比べることに変わります。" data-en="There are only two tools: sky_ratio (takes a point and a list of boxes, returns the sky factor) and sky_measurement_points (returns the points from frontage and road width). The model's job becomes reading coordinates from the question, passing them to the tool and comparing the results.">計算ツールは2つだけです。sky_ratio（測定点と直方体の一覧を受け取り天空率を返す）と sky_measurement_points（間口と幅員から測定点を返す）。モデルの仕事は、問題文から座標を読み取ってツールに渡し、結果を比べることに変わります。</p>
+<p class="note" data-ja="正解の計算は、方位角0.01°刻みの正射影積分です。無限に長い壁の解析解と小数第6位まで一致し、bim.house の天空率エンジン（別実装）とも{len(geo)}形状で最大{d160:.2f}ポイント差（エンジン側を細かくすると{d1200:.2f}ポイント差）、比較問題の判定は{agree}/{cmp_n}で一致しました。対象は平坦な敷地の直方体だけで、地盤の高低差・2以上の前面道路・隣地や北側の天空率は含みません。測定の費用は合計 ${cost:.2f} です。" data-en="Ground truth is an orthographic-projection integral at 0.01° azimuth steps. It matches the closed form for an infinite wall to six decimals, and agrees with bim.house's independent sky-factor engine within {d160:.2f} points across {len(geo)} shapes ({d1200:.2f} at higher engine resolution), with {agree}/{cmp_n} identical verdicts. Scope is boxes on flat sites only; grade differences, multiple fronting roads and side/north sky factors are excluded. Total measurement cost ${cost:.2f}.">正解の計算は、方位角0.01°刻みの正射影積分です。無限に長い壁の解析解と小数第6位まで一致し、bim.house の天空率エンジン（別実装）とも{len(geo)}形状で最大{d160:.2f}ポイント差（エンジン側を細かくすると{d1200:.2f}ポイント差）、比較問題の判定は{agree}/{cmp_n}で一致しました。対象は平坦な敷地の直方体だけで、地盤の高低差・2以上の前面道路・隣地や北側の天空率は含みません。測定の費用は合計 ${cost:.2f} です。</p>
+<p class="links"><a href="/blog-assets/{SKY_ASSET}.json" data-ja="天空率50問の全応答・ツール定義・突き合わせ（JSON）→" data-en="All 50 sky-factor responses, tool definitions and cross-check (JSON) →">天空率50問の全応答・ツール定義・突き合わせ（JSON）→</a></p>
+</section>
+"""
+    return sec, tldr
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--teai", default=os.path.expanduser("~/workspace/teai.io"))
@@ -187,6 +318,8 @@ def main() -> int:
 
     total_cost = sum(base[m]["cost_total_usd"] for m, _ in ORDER) + sum(rag[m]["cost_total_usd"] for m, _ in ORDER)
     total_req = n * 6 * 2
+
+    sky_section, sky_tldr = build_sky(a.teai, a.skip_asset)
 
     # --- 表: 本体結果
     rows = []
@@ -458,6 +591,7 @@ a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-of
 <a href="#notes" data-ja="費用と精度" data-en="Cost vs accuracy">費用と精度</a>
 <a href="#samples" data-ja="実例" data-en="Examples">実例</a>
 <a href="#protocol" data-ja="条件と限界" data-en="Conditions and limits">条件と限界</a>
+<a href="#sky" data-ja="天空率" data-en="Sky factor">天空率</a>
 <a href="#practice" data-ja="実務の判断" data-en="In production">実務の判断</a>
 <a href="#data" data-ja="証跡" data-en="Evidence">証跡</a>
 </nav>
@@ -467,6 +601,7 @@ a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-of
 <li data-ja="条文を渡すと、6モデルすべて改善した。最大 +55.2ポイント（GPT-5.4 Nano 37.9% → 93.1%）。" data-en="Supplying the articles improved all six models, by up to 55.2 points (GPT-5.4 Nano 37.9% → 93.1%).">条文を渡すと、6モデルすべて改善した。最大 +55.2ポイント（GPT-5.4 Nano 37.9% → 93.1%）。</li>
 <li data-ja="同じリクエスト40回のうち15回は、6トークンで即答し、すべて不正解だった。残り25回は推論して全問正解。" data-en="15 of 40 identical requests answered after 6 tokens, all wrong. The other 25 reasoned and were all correct.">同じリクエスト40回のうち15回は、6トークンで即答し、すべて不正解だった。残り25回は推論して全問正解。</li>
 <li data-ja="同じ条件の2回目で、qwen は82/203問、nano は20/203問が正誤反転した。1回の合格は再現性の証明にならない。" data-en="On a second run of the same condition, 82 of 203 tasks flipped for qwen and 20 for nano. One pass is not proof of reproducibility.">同じ条件の2回目で、qwen は82/203問、nano は20/203問が正誤反転した。1回の合格は再現性の証明にならない。</li>
+{sky_tldr}
 </ul>
 </div>
 <p class="lead" data-ja="建築基準法203問を6モデルで実測しました。条文を渡すと全モデルが大きく伸び、最大で+55ポイント。ところが1問の同じリクエストを40回繰り返すと、推論をする応答と、{short_ctoks_text}トークンで即答する応答が混ざり、即答した{total_short}回はすべて不正解でした。" data-en="We measured 203 Building Standard Law tasks across six models. Supplying the articles lifted every model, by up to 55 points. But repeating one identical question 40 times produced two kinds of response: one that reasons, and one that answers after {short_ctoks_text} tokens. Every one of the {total_short} instant answers was wrong.">建築基準法203問を6モデルで実測しました。条文を渡すと全モデルが大きく伸び、最大で+55ポイント。ところが1問の同じリクエストを40回繰り返すと、推論をする応答と、{short_ctoks_text}トークンで即答する応答が混ざり、即答した{total_short}回はすべて不正解でした。</p>
@@ -583,6 +718,7 @@ a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-of
 <p class="warnbox" data-ja="限界：これは小さな自作ベンチマークで、新しい非公開テストではありません。長文コンテキスト・画像・自由作文・コード開発・エージェント動作は対象外です。単一モデルの分散は qwen と nano でしか測っておらず、他の4モデルは1回だけです。40回の反復は1問（day-000）だけで、他の202問で同じ振れが起きる頻度は測っていません。203問・1回の測定なので、95%信頼区間（Wilson）は正解率によって幅が変わります。今回の実測では GPT-5.5 の 99.5% で 97.3〜99.9（幅2.7pt）、Qwen の 61.1% で 54.2〜67.5（幅13.3pt）でした。上位5モデルは 93〜99.5% に固まっており、その差（例: 99.5% と 99.0%）は区間が重なるため測定では区別できません。公表時点の上流の構成や混雑で、応答時間も応答の型も変わります。" data-en="Limits: this is a small synthetic benchmark, not a fresh hidden test. Long context, images, open-ended writing, coding projects and agent behaviour are out of scope. Variance was measured only for qwen and nano; the other four models were run once. The 40 repeats cover a single task (day-000); how often the same split occurs on the other 202 is unmeasured. With 203 tasks and one run, the Wilson 95% interval depends on the score: in this data it spans 97.3–99.9 (2.7 points wide) at GPT-5.5's 99.5%, and 54.2–67.5 (13.3 points) at Qwen's 61.1%. The top five models sit between 93% and 99.5%, and their gaps (e.g. 99.5% vs 99.0%) fall inside overlapping intervals, so this measurement cannot separate them. Upstream routing and load change both latency and response type.">限界：これは小さな自作ベンチマークで、新しい非公開テストではありません。長文コンテキスト・画像・自由作文・コード開発・エージェント動作は対象外です。単一モデルの分散は qwen と nano でしか測っておらず、他の4モデルは1回だけです。公表時点の上流の構成や混雑で、応答時間も応答の型も変わります。</p>
 </section>
 
+{sky_section}
 <section id="practice">
 <h2 data-ja="実務で使うなら、この3つを先に決める" data-en="If you put this into production, decide these three first">実務で使うなら、この3つを先に決める</h2>
 <div class="scroll" tabindex="0" role="region" aria-label="表（横にスクロールできます）" data-aria-en="Table (scrolls horizontally)"><table>
