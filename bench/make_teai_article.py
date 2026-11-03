@@ -153,6 +153,76 @@ SKY_KIND = {"calc_sky": ("天空率の計算", "Sky factor value"),
             "sky_points": ("測定点の数と間隔", "Measurement points")}
 
 
+def strict_scores() -> dict:
+    """条文ありの結果を「回答の最後の答えだけ」で厳しく採点し直した正解率（数値穴埋め・応用計算のみ厳しくする）。"""
+    import re as _re
+    from bench.grade import numeric_candidates
+    tasks = {json.loads(l)["id"]: json.loads(l) for l in open(os.path.join(ROOT, "data", "tasks.jsonl"), encoding="utf-8")}
+    out = {}
+    for m, _ in ORDER:
+        rows = list(load("rag", m).values())
+        ok = sum(1 for r in rows if r["correct"])
+        demote = 0
+        for r in rows:
+            if not r["correct"] or "pred" not in r:
+                continue
+            t, p = tasks[r["id"]], r["pred"].strip()
+            if t["kind"] == "numeric":
+                frags = [f for f in _re.split(r"[\n。]", p) if numeric_candidates(f)]
+                if t["answer_norm"] not in numeric_candidates(frags[-1] if frags else ""):
+                    demote += 1
+            elif t["kind"] == "applied":
+                _, a, b = t["answer_norm"].split("#")
+                nums = [float(x) for x in _re.findall(r"\d+(?:\.\d+)?", p.replace(",", ""))][-2:]
+                if not (any(abs(v - float(a)) <= 0.11 for v in nums) and any(abs(v - float(b)) <= 0.11 for v in nums)):
+                    demote += 1
+        out[m] = ((ok - demote) / len(rows), ok / len(rows))
+    return out
+
+
+def manual_stats() -> dict:
+    """人が条文を貼った場合（bench/run_manual.py）と、同じ問題の条文なし・自動検索の正解数。"""
+    out = {}
+    for s in json.load(open(os.path.join(ROOT, "results", "manual", "summary.json"), encoding="utf-8")):
+        m, ids = s["model"], set(s["ids"])
+        def cnt(tag):
+            rows = [r for r in load(tag, m).values() if r["id"] in ids]
+            return sum(1 for r in rows if r["correct"]), len(rows)
+        man = list(load("manual", m).values())
+        out[m] = {"base": cnt("base"), "rag": cnt("rag"),
+                  "manual": (sum(1 for r in man if r["correct"]), len(man)),
+                  "wrong": [r for r in man if not r["correct"]]}
+    return out
+
+
+def two_run_stats() -> tuple[int, int, int, int]:
+    """同じ条件で2回測った結果から「2回の答えが食い違った問題に、1回目の誤答が何件含まれたか」を数える。
+    答えは回答末尾の数値・条番号・判定語を機械的に抜き出して比べる（書き方の違いも食い違いに数える）。"""
+    import re as _re
+
+    def key(r):
+        p = (r.get("pred") or "").replace(",", "").replace("，", "")
+        toks = _re.findall(r"第?\d+(?:\.\d+)?(?:条(?:の\d+)?)?|適合|不適合|誤り|正しい", p)
+        return tuple(toks[-2:]) if toks else None
+    wrong = caught = 0
+    lo = hi = None
+    for a, b, m in (("rag", "rag-repeat1", "qwen/qwen3.5-flash-02-23"), ("rag", "rag-repeat2", "openai/gpt-5.4-nano")):
+        A, B = load(a, m), load(b, m)
+        w = c = 0
+        for k, x in A.items():
+            y = B.get(k)
+            if not y or "pred" not in x or "pred" not in y or x["correct"]:
+                continue
+            w += 1
+            c += not (key(x) == key(y) and key(x) is not None)
+        wrong += w
+        caught += c
+        r = round(c / w * 100)
+        lo = r if lo is None else min(lo, r)
+        hi = r if hi is None else max(hi, r)
+    return wrong, caught, lo, hi
+
+
 def build_use(teai: str, skip_asset: bool) -> tuple[str, str]:
     """「この記事をどう使うか」節。立場別の具体的な手順と、配布ツール sky_tool.py。"""
     tools = summary("sky-tools")
@@ -174,37 +244,55 @@ def build_use(teai: str, skip_asset: bool) -> tuple[str, str]:
         "条文に書いていないことは「条文に記載なし」と書く。式の結果は自分で検算する。"
     )
     yen = luna_t["cost_per_task_usd"] * 150
-    tldr = (f'<li data-ja="使い方の結論：条文は貼り、計算は道具に。天空率はAIの手計算だと最良でも{pct(luna_r["accuracy"], 0)}（測れた3モデル中）、計算ツールを渡すと{pct(luna_t["accuracy"], 0)}（1問約{yen:.1f}円）。" '
-            f'data-en="Bottom line: paste the articles, let a tool calculate. On the sky factor, AI by hand scored at best {pct(luna_r["accuracy"], 0)} (of the three models we could measure); with the tool, {pct(luna_t["accuracy"], 0)} (about JPY {yen:.1f} per task). On raised or corner lots, where deciding the inputs takes judgment, even tool-assisted accuracy fell to 80–95% per model. Articles were retrieved and supplied automatically; pasting by hand into ChatGPT was not measured.">'
-            f'使い方の結論：条文は貼り、計算は道具に。天空率はAIの手計算だと最良でも{pct(luna_r["accuracy"], 0)}（測れた3モデル中）、計算ツールを渡すと{pct(luna_t["accuracy"], 0)}（1問約{yen:.1f}円）。ただし地盤の高低差や角地のように入力の判断が要る問題では、ツールありでもモデルごとに80〜95%に下がった。今回は条文を自動で選んで渡す方式で測っており、ChatGPTに手で貼る方法は測っていません。</li>')
+    tw, tc, tlo, thi = two_run_stats()
+    ms = manual_stats()
+    g55, lun = ms["openai/gpt-5.5"], ms["openai/gpt-5.6-luna"]
+    ex = next((r for r in lun["wrong"]), None)
+    ex_line = ""
+    if ex:
+        import re as _re2
+        m_ = _re2.search(r"min\([^\n]*", ex.get("pred", ""))
+        ex_line = esc(m_.group(0)) if m_ else ""
+    tldr = (f'<li data-ja="明日から：ChatGPTに法規を聞くときは条文を貼り、「数値と条番号だけ」で答えさせる（API経由のGPT-5.5で計算問題{g55["base"][0]}/{g55["base"][1]} → {g55["manual"][0]}/{g55["manual"][1]}。ChatGPTアプリでは未測定）。" '
+            f'data-en="From tomorrow: when you ask ChatGPT about the code, paste the article and ask for only the value and article number (GPT-5.5 via API on calculation tasks: {g55["base"][0]}/{g55["base"][1]} → {g55["manual"][0]}/{g55["manual"][1]}; the ChatGPT app itself was not measured).">'
+            f'明日から：ChatGPTに法規を聞くときは条文を貼り、「数値と条番号だけ」で答えさせる（API経由のGPT-5.5で計算問題{g55["base"][0]}/{g55["base"][1]} → {g55["manual"][0]}/{g55["manual"][1]}。ChatGPTアプリでは未測定）。</li>\n'
+            f'<li data-ja="天空率はAIに手計算させない。手計算は最良でも{pct(luna_r["accuracy"], 0)}、計算ツールを渡すと{pct(luna_t["accuracy"], 0)}。" '
+            f'data-en="Never let AI compute the sky factor by hand: at best {pct(luna_r["accuracy"], 0)} by hand, {pct(luna_t["accuracy"], 0)} with a calculation tool.">'
+            f'天空率はAIに手計算させない。手計算は最良でも{pct(luna_r["accuracy"], 0)}、計算ツールを渡すと{pct(luna_t["accuracy"], 0)}。</li>\n'
+            f'<li data-ja="大事な数字は、新しいチャットでもう1回聞く。2回測った安価な2モデルでは、誤答の9割超（{tlo}〜{thi}%）が2回目と食い違い、気づけた（上位モデルでは未測定）。" '
+            f'data-en="For figures that matter, ask again in a fresh chat: for the two low-cost models we ran twice, over 90% ({tlo}–{thi}%) of wrong answers disagreed with the second run and could be caught (not measured on top models).">'
+            f'大事な数字は、新しいチャットでもう1回聞く。2回測った安価な2モデルでは、誤答の9割超（{tlo}〜{thi}%）が2回目と食い違い、気づけた（上位モデルでは未測定）。</li>')
     sec = f"""<section id="use">
 <h2 data-ja="この記事の使い方：立場別に、今日からできること" data-en="How to use this: what you can do today, by role">この記事の使い方：立場別に、今日からできること</h2>
 <p class="lead" data-ja="結論は一つです。建築の数字をAIに出させるときは、条文は渡し、計算は道具にさせる。AIの仕事は、条文を読んで、道具に正しい値を渡すことです。" data-en="One conclusion: when AI produces building-code numbers, supply the articles and let a tool do the arithmetic. The AI's job is to read the articles and hand the right values to the tool.">結論は一つです。建築の数字をAIに出させるときは、条文は渡し、計算は道具にさせる。AIの仕事は、条文を読んで、道具に正しい値を渡すことです。</p>
-<p data-ja="天空率で確かめると、差ははっきり出ました。同じGPT-5.6 Lunaで、手計算させると{pct(luna_r['accuracy'], 0)}、計算ツールを渡すと{pct(luna_t['accuracy'], 0)}。1問あたり約{yen:.1f}円（${luna_t['cost_per_task_usd']:.4f}、1ドル150円換算）、待ち時間は中央値{luna_t['latency_median_s']:.0f}秒でした。" data-en="The sky factor makes the gap plain. The same GPT-5.6 Luna scored {pct(luna_r['accuracy'], 0)} by hand and {pct(luna_t['accuracy'], 0)} with the calculation tool, at ${luna_t['cost_per_task_usd']:.4f} and a median {luna_t['latency_median_s']:.0f} s per task.">天空率で確かめると、差ははっきり出ました。同じGPT-5.6 Lunaで、手計算させると{pct(luna_r['accuracy'], 0)}、計算ツールを渡すと{pct(luna_t['accuracy'], 0)}。1問あたり約{yen:.1f}円（${luna_t['cost_per_task_usd']:.4f}、1ドル150円換算）、待ち時間は中央値{luna_t['latency_median_s']:.0f}秒でした。</p>
 <p class="tomorrow" data-ja="明日やることは1つ。ChatGPTに法規を聞くときは、e-Govの条文を一緒に貼り、「数値と条番号だけ」で答えさせる。" data-en="One thing to do tomorrow: when you ask ChatGPT about the code, paste the e-Gov article with it and ask for only the value and the article number.">明日やることは1つ。ChatGPTに法規を聞くときは、e-Govの条文を一緒に貼り、「数値と条番号だけ」で答えさせる。</p>
-<p class="note" data-ja="測ったのは、条文の読み取りと、条文の式でできる計算（建蔽率・容積率・採光・天空率など）です。条例・告示・特定行政庁の取り扱い・日影・避難などを含む法規チェック全体ではありません。" data-en="What we measured is reading the articles and arithmetic their formulas allow (coverage, FAR, daylight, sky factor). It is not a full code review covering local ordinances, notices, authority practice, shadow regulation or egress.">測ったのは、条文の読み取りと、条文の式でできる計算（建蔽率・容積率・採光・天空率など）です。条例・告示・特定行政庁の取り扱い・日影・避難などを含む法規チェック全体ではありません。</p>
+<p class="note" data-ja="測ったのは、API経由のモデルによる条文の読み取りと、条文の式でできる計算（建蔽率・容積率・採光・天空率など）です。ChatGPTアプリの計算機能や、条例・告示・日影・避難を含む法規チェック全体は測っていません。アプリが計算した場合も、式を1行出させて寸法と式を自分で確かめてください。" data-en="We measured API models reading the articles and doing the arithmetic their formulas allow (coverage, FAR, daylight, sky factor). Chat apps’ own calculation features and full code review (ordinances, notices, shadow, egress) were not measured. Even when an app calculates, have it show the formula on one line and check dimensions and formula yourself.">測ったのは、API経由のモデルによる条文の読み取りと、条文の式でできる計算（建蔽率・容積率・採光・天空率など）です。ChatGPTアプリの計算機能や、条例・告示・日影・避難を含む法規チェック全体は測っていません。アプリが計算した場合も、式を1行出させて寸法と式を自分で確かめてください。</p>
 
 <h3 data-ja="1. ChatGPTなどで法規を調べている（設計・審査の実務者）" data-en="1. You look up regulations with ChatGPT or similar (design and review practitioners)">1. ChatGPTなどで法規を調べている（設計・審査の実務者）</h3>
+<p data-ja="上の1つだけでも効果があります。余裕があれば、次の4つまでやると確実です。" data-en="The one step above already helps. If you have time, these four make it reliable.">上の1つだけでも効果があります。余裕があれば、次の4つまでやると確実です。</p>
 <ol>
 <li data-ja="e-Gov法令検索で該当条文を開き、条文そのものを質問に貼る（203問では、これだけで全モデルの正解率が上がった）。" data-en="Open the article on e-Gov and paste its text into the question (on the 203 tasks, this alone raised every model).">e-Gov法令検索で該当条文を開き、条文そのものを質問に貼る（203問では、これだけで全モデルの正解率が上がった）。</li>
 <li data-ja="答えは「数値」と「条番号」だけで返させる。長い説明は検算できない。" data-en="Ask for only the value and the article number. Long explanations can't be checked.">答えは「数値」と「条番号」だけで返させる。長い説明は検算できない。</li>
 <li data-ja="面積・天空率などの計算はAIにさせず、計算ソフトか下のツールで出す。" data-en="Don't let the AI do area or sky-factor arithmetic; use calculation software or the tool below.">面積・天空率などの計算はAIにさせず、計算ソフトか下のツールで出す。</li>
-<li data-ja="新しいチャットを開いて、同じ質問をもう1回する。答えが違えば、人が条文で確かめる（同じ質問でも答えが変わることを下の「40回の反復」で示しています）。" data-en="Ask again in a fresh chat. If the answers differ, a person checks the article (the 40-repeat section below shows identical questions can change answers).">新しいチャットを開いて、同じ質問をもう1回する。答えが違えば、人が条文で確かめる（同じ質問でも答えが変わることを下の「40回の反復」で示しています）。</li>
+<li data-ja="最後は人が条文で確かめる。手早く当たりを付けるなら、新しいチャットで同じ質問をもう1回し、答えが違えば必ず条文に戻る。同じ条件で2回測った安価な2モデル（Qwen3.5 Flash・GPT-5.4 Nano）では、1回目の誤答{tw}件のうち{tc}件（{tlo}〜{thi}%）で2回目の答えが食い違い、この確認で気づけました。上位モデルが同じ誤答を2回返す場合には効かないので、その場合は条文で確かめるのが前提です。" data-en="A person checks the article in the end. For a quick screen, ask again in a fresh chat and go back to the article whenever the answers differ. For the two low-cost models we ran twice (Qwen3.5 Flash, GPT-5.4 Nano), {tc} of {tw} first-run errors ({tlo}–{thi}%) came back with a different second answer, so this check would have caught them.">最後は人が条文で確かめる。手早く当たりを付けるなら、新しいチャットで同じ質問をもう1回し、答えが違えば必ず条文に戻る。同じ条件で2回測った安価な2モデル（Qwen3.5 Flash・GPT-5.4 Nano）では、1回目の誤答{tw}件のうち{tc}件（{tlo}〜{thi}%）で2回目の答えが食い違い、この確認で気づけました。上位モデルが同じ誤答を2回返す場合には効かないので、その場合は条文で確かめるのが前提です。</li>
 </ol>
-<p class="note" data-ja="前提：今回の測定では、質問に合う条文を検索で自動的に選んで渡しました（1問あたり約6,000字まで）。人が条文を選んで貼った場合は測っていません。貼るのは関係する条だけにし、長くなりすぎないようにしてください。" data-en="Premise: in this measurement the matching articles were retrieved and supplied automatically (up to about 6,000 characters per task). Articles chosen and pasted by hand were not measured. Paste only the relevant articles and keep it short.">前提：今回の測定では、質問に合う条文を検索で自動的に選んで渡しました（1問あたり約6,000字まで）。人が条文を選んで貼った場合は測っていません。貼るのは関係する条だけにし、長くなりすぎないようにしてください。</p>
-<p data-ja="貼る条文の目安（今回の問題で使ったもの）：建蔽率は法第53条、容積率は法第52条第1項・第2項、採光補正係数は令第20条、天空率は令第135条の5〜第135条の9（前面道路が2本なら令第132条も）。条例・告示・特定行政庁の取り扱いは別に確かめてください。" data-en="Which articles to paste (as used in these tasks): coverage – Act Art. 53; FAR – Act Art. 52(1)(2); daylight factor – Order Art. 20; sky factor – Order Arts. 135-5 to 135-9 (plus Art. 132 for two fronting roads). Check ordinances, notices and local authority practice separately.">貼る条文の目安（今回の問題で使ったもの）：建蔽率は法第53条、容積率は法第52条第1項・第2項、採光補正係数は令第20条、天空率は令第135条の5〜第135条の9（前面道路が2本なら令第132条も）。条例・告示・特定行政庁の取り扱いは別に確かめてください。</p>
-<p class="links"><a href="https://laws.e-gov.go.jp/law/325AC0000000201" data-ja="e-Gov法令検索：建築基準法 →" data-en="e-Gov: Building Standard Law →">e-Gov法令検索：建築基準法 →</a><a href="https://laws.e-gov.go.jp/law/325CO0000000338" data-ja="同施行令 →" data-en="Enforcement Order →">同施行令 →</a></p>
+<p class="note" data-ja="この手順そのままでも測りました。下の「貼る条文の目安」の条文を丸ごと貼り、質問の型で聞くと、計算問題{g55['manual'][1]}問でGPT-5.5は条文なし{g55['base'][0]}問正解 → 貼ると{g55['manual'][0]}問、GPT-5.6 Lunaは{lun['base'][0]}問 → {lun['manual'][0]}問でした。" data-en="We also measured this exact procedure: pasting the articles from “which articles to paste” below in full and using the template, on {g55['manual'][1]} calculation tasks GPT-5.5 went from {g55['base'][0]} correct without articles to {g55['manual'][0]}, and GPT-5.6 Luna from {lun['base'][0]} to {lun['manual'][0]}.">この手順そのままでも測りました。下の「貼る条文の目安」の条文を丸ごと貼り、質問の型で聞くと、計算問題{g55['manual'][1]}問でGPT-5.5は条文なし{g55['base'][0]}問正解 → 貼ると{g55['manual'][0]}問、GPT-5.6 Lunaは{lun['base'][0]}問 → {lun['manual'][0]}問でした。</p>
+<p data-ja="Lunaが外した1問は、3行目の式が「{ex_line}」となっていました。小さい方を選ぶ式で大きい方を答えています。式を1行書かせておけば、こうした誤りは人が一目で見つけられます。" data-en="The one task Luna missed showed its third line as “{ex_line}”: a min() that returned the larger value. With the formula on one line, a person spots this at a glance.">Lunaが外した1問は、3行目の式が「{ex_line}」となっていました。小さい方を選ぶ式で大きい方を答えています。式を1行書かせておけば、こうした誤りは人が一目で見つけられます。</p>
+<p data-ja="貼る条文の目安（今回の問題で使ったもの）：建蔽率は法第53条、容積率は法第52条第1項・第2項、採光補正係数は令第20条、天空率は令第135条の5〜第135条の9（前面道路が2本なら令第132条も。天空率の値そのものではなく、測定点の位置や数を確かめる用）。条例・告示・特定行政庁の取り扱いは別に確かめてください。" data-en="Which articles to paste (as used in these tasks): coverage – Act Art. 53; FAR – Act Art. 52(1)(2); daylight factor – Order Art. 20; sky factor – Order Arts. 135-5 to 135-9 (plus Art. 132 for two fronting roads; for checking measurement points, not for the value itself). Check ordinances, notices and local authority practice separately.">貼る条文の目安（今回の問題で使ったもの）：建蔽率は法第53条、容積率は法第52条第1項・第2項、採光補正係数は令第20条、天空率は令第135条の5〜第135条の9（前面道路が2本なら令第132条も。天空率の値そのものではなく、測定点の位置や数を確かめる用）。条例・告示・特定行政庁の取り扱いは別に確かめてください。</p>
+<p class="links"><a href="https://laws.e-gov.go.jp/law/325AC0000000201#Mp-Ch_3-Se_4-At_52" data-ja="法第52条（容積率）→" data-en="Act Art. 52 (FAR) →">法第52条（容積率）→</a><a href="https://laws.e-gov.go.jp/law/325AC0000000201#Mp-Ch_3-Se_4-At_53" data-ja="法第53条（建蔽率）→" data-en="Act Art. 53 (coverage) →">法第53条（建蔽率）→</a><a href="https://laws.e-gov.go.jp/law/325CO0000000338#Mp-Ch_2-Se_1-At_20" data-ja="令第20条（採光補正係数）→" data-en="Order Art. 20 (daylight) →">令第20条（採光補正係数）→</a><a href="https://laws.e-gov.go.jp/law/325CO0000000338#Mp-Ch_7-At_135_9" data-ja="令第135条の9（天空率の測定点）→" data-en="Order Art. 135-9 (measurement points) →">令第135条の9（天空率の測定点）→</a></p>
+<p data-ja="貼るのは、聞きたいことに関係する条1つ分で十分です（今回の手順では、容積率なら法第52条の全文、約6,200字を貼りました）。" data-en="One article relevant to your question is enough (for FAR we pasted the full Art. 52, about 6,200 characters).">貼るのは、聞きたいことに関係する条1つ分で十分です（今回の手順では、容積率なら法第52条の全文、約6,200字を貼りました）。</p>
 <p data-ja="そのまま貼れる質問の型：" data-en="A question template you can paste (in Japanese):">そのまま貼れる質問の型：</p>
 <pre><code>{esc(prompt_tpl)}</code></pre>
-<p class="note" data-ja="今回測ったのはAPI経由のモデルです。ChatGPTアプリなどに付いている計算機能（コード実行）を使った場合は測っていません。アプリが自分で計算する場合でも、入力した寸法と式は人が確かめてください。" data-en="We measured models via the API. Chat apps' built-in calculation features (code execution) were not measured. Even when an app computes for you, a person should check the inputs and formula.">今回測ったのはAPI経由のモデルです。ChatGPTアプリなどに付いている計算機能（コード実行）を使った場合は測っていません。アプリが自分で計算する場合でも、入力した寸法と式は人が確かめてください。</p>
 
 <h3 data-ja="2. 実際の土地で、天空率や建てられる大きさを知りたい（設計・不動産）" data-en="2. You want the sky factor or buildable size for a real lot (design, real estate)">2. 実際の土地で、天空率や建てられる大きさを知りたい（設計・不動産）</h3>
 <p data-ja="天空率はAIのチャットに手計算させないでください。今回、手計算では最良のモデルでも約半分しか合いませんでした。お手持ちの天空率ソフトがあれば、それが最優先です。下の診断は確認申請に使える精度のものではなく、土地を検討する初期の当たり付け用です。地図で土地を選ぶと用途地域と前面道路から上限と道路斜線どおりの規模を無料で出し、天空率の検討をレポート（3,300円）で出す道具も使えます。この道具の天空率計算は今回の正解計算とは別の作り方で、140通りの形状で0.17ポイント以内の一致を確かめています。" data-en="Don't have a chat AI compute the sky factor by hand; even the best model here got about half right. If you have sky-factor software, use it first. The check below is not permit-grade; it is for early screening of a lot. It takes a lot picked on a map, derives the limits and the road-setback volume for free from the zoning and fronting road, and produces a sky-factor study as a report (JPY 3,300). Its sky-factor engine is built independently of this study's ground truth and agrees within 0.17 points across 140 shapes.">天空率はAIのチャットに手計算させないでください。今回、手計算では最良のモデルでも約半分しか合いませんでした。お手持ちの天空率ソフトがあれば、それが最優先です。下の診断は確認申請に使える精度のものではなく、土地を検討する初期の当たり付け用です。地図で土地を選ぶと用途地域と前面道路から上限と道路斜線どおりの規模を無料で出し、天空率の検討をレポート（3,300円）で出す道具も使えます。この道具の天空率計算は今回の正解計算とは別の作り方で、140通りの形状で0.17ポイント以内の一致を確かめています。</p>
+<p data-ja="天空率で明日からAIに任せてよいのは、測定点の数と間隔を出させる作業です。令第135条の9を一緒に渡して聞くと（今回は自動で渡した条件）、手計算でも80〜100%合いました。ソフトに入れる測定点の設定と照らし合わせる用途に使えます。" data-en="The sky-factor task you can hand to AI from tomorrow is working out the number and spacing of measurement points: with Art. 135-9 supplied (automatically, in our setup), even by hand it was 80–100% correct. Use it to cross-check the points you enter in your software.">天空率で明日からAIに任せてよいのは、測定点の数と間隔を出させる作業です。令第135条の9を一緒に渡して聞くと（今回は自動で渡した条件）、手計算でも80〜100%合いました。ソフトに入れる測定点の設定と照らし合わせる用途に使えます。</p>
 <p class="note" data-ja="bim.house は、この記事を書いた teai と同じイネブラ（Enabler Inc.）が運営しています。" data-en="bim.house is run by Enabler Inc., the same company behind teai, which wrote this article.">bim.house は、この記事を書いた teai と同じイネブラ（Enabler Inc.）が運営しています。</p>
 <p class="links"><a href="https://bim.house/tochi/tateru" data-ja="建てられる大きさ診断（bim.house）を開く →" data-en="Open the buildable-size check (bim.house) →">建てられる大きさ診断（bim.house）を開く →</a></p>
 
 <h3 data-ja="3. 自社のシステムやAIに組み込みたい（開発者）" data-en="3. You want to build this into your own system or AI (developers)">3. 自社のシステムやAIに組み込みたい（開発者）</h3>
 <p data-ja="今回の計算ツールを1ファイルで公開しました（Python、外部ライブラリなし、MIT）。計算だけならAPIキーは不要です。AIに質問させる場合は、teai に無料登録してAPIキーを発行し、使う分をチャージします（月額なし）。" data-en="We've published the calculation tool as a single file (Python, no dependencies, MIT). No API key is needed for calculation alone; to let an AI answer questions with it, sign up free at teai, issue an API key and top up what you use (no monthly fee).">今回の計算ツールを1ファイルで公開しました（Python、外部ライブラリなし、MIT）。計算だけならAPIキーは不要です。AIに質問させる場合は、teai に無料登録してAPIキーを発行し、使う分をチャージします（月額なし）。</p>
+<details class="cli"><summary data-ja="コマンドの使い方と座標の決め方を開く" data-en="Show commands and coordinates">コマンドの使い方と座標の決め方を開く</summary>
 <p data-ja="座標の決め方：前面道路に沿う方向を x、道路から敷地の奥へ向かう方向を y とし、前面道路は y=-幅員〜0、敷地は y≥0 に置きます。--point は測定点の「x,y」、--box は建物の「x の始まり,x の終わり,y の始まり,y の終わり,高さ」です（単位m、高さは路面の中心から）。" data-en="Coordinates: x runs along the front road, y runs from the road into the lot; the road occupies y = −width…0 and the lot y ≥ 0. --point is the measurement point “x,y”; --box is a building “x start, x end, y start, y end, height” (metres; height from the road centre).">座標の決め方：前面道路に沿う方向を x、道路から敷地の奥へ向かう方向を y とし、前面道路は y=-幅員〜0、敷地は y≥0 に置きます。--point は測定点の「x,y」、--box は建物の「x の始まり,x の終わり,y の始まり,y の終わり,高さ」です（単位m、高さは路面の中心から）。</p>
 <pre><code>  敷地 (y≥0)            ┌──────────┐ 建物 --box 0,10,2,14,12
                         │          │
@@ -224,9 +312,10 @@ python3 sky_tool.py compare --frontage 12 --road 6 --plan 1,11,2,14,15 --conf 0,
 # AIに質問し、計算はツールにさせる
 export TEAI_API_KEY=...
 python3 sky_tool.py ask "{esc(demo['question'])}"</code></pre>
-<p data-ja="最後のコマンドを実際に動かした記録です。AIは質問から座標を読み取ってツールを1回呼び、ツールの値をそのまま答えました。" data-en="Here is a real run of the last command. The AI read the coordinates from the question, called the tool once, and answered with the tool's value.">最後のコマンドを実際に動かした記録です。AIは質問から座標を読み取ってツールを1回呼び、ツールの値をそのまま答えました。</p>
+<p data-ja="compare は、測定点ごとに計画建築物と適合建築物の天空率を並べ、最も不利な点で判定します（出力例の最後の行：「判定: 不適合（最も不利な点 P1、差 -1.159ポイント）」）。最後のコマンドを実際に動かした記録です。AIは質問から座標を読み取ってツールを1回呼び、ツールの値をそのまま答えました。" data-en="compare lists both sky factors per point and judges on the worst point (example last line: “判定: 不適合（最も不利な点 P1、差 -1.159ポイント）”). Here is a real run of the last command. The AI read the coordinates from the question, called the tool once, and answered with the tool's value.">compare は、測定点ごとに計画建築物と適合建築物の天空率を並べ、最も不利な点で判定します（出力例の最後の行：「判定: 不適合（最も不利な点 P1、差 -1.159ポイント）」）。最後のコマンドを実際に動かした記録です。AIは質問から座標を読み取ってツールを1回呼び、ツールの値をそのまま答えました。</p>
 <pre><code>AIが呼んだツール：{esc(tool_line)}
 AIの答え：天空率 {esc(demo_val)}%（根拠：建築基準法施行令第135条の5）</code></pre>
+</details>
 <p class="links"><a href="/blog-assets/sky_tool.py" download data-ja="sky_tool.py をダウンロード →" data-en="Download sky_tool.py →">sky_tool.py をダウンロード →</a><a href="/docs" data-ja="APIキーの発行と使い方 →" data-en="Getting an API key →">APIキーの発行と使い方 →</a></p>
 <p class="note" data-ja="このツールが扱うのは直方体の組み合わせまでです（斜線どおりの斜面は段状の直方体で近似します。上の compare の例は、後退距離による緩和を考慮していない単純な例です）。確認申請に使う数値は、申請に用いる天空率ソフトで必ず確認してください。最終的な適合の判断は、資格のある設計者が行います。" data-en="The tool handles combinations of boxes only. Confirm any figure for a building-permit application with the sky-factor software used for the application. The final compliance judgment rests with a qualified designer.">このツールが扱うのは直方体の組み合わせまでです（斜線どおりの斜面は段状の直方体で近似します。上の compare の例は、後退距離による緩和を考慮していない単純な例です）。確認申請に使う数値は、申請に用いる天空率ソフトで必ず確認してください。最終的な適合の判断は、資格のある設計者が行います。</p>
 </section>
@@ -472,6 +561,9 @@ def main() -> int:
     total_req = n * 6 * 2
 
     sky_section, sky_tldr = build_sky(a.teai, a.skip_asset)
+    st = strict_scores()
+    strict_txt = "・".join(f"{label} {pct(st[m][0])}" for m, label in ORDER)
+    strict_drop = max(st[m][1] - st[m][0] for m, _ in ORDER) * 100
     use_section, use_tldr = build_use(a.teai, a.skip_asset)
 
     # --- 表: 本体結果
@@ -651,7 +743,10 @@ th{font-weight:600;color:#cfe3d8}
 td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .id{color:var(--muted);font-size:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 .weak{color:var(--warn)}
-.note{border-left:3px solid var(--accent);padding:4px 0 4px 18px;color:var(--muted)}
+.note{border-left:3px solid var(--accent);padding:4px 0 4px 18px;color:#d9e5df;font-size:15.5px}
+main p,main li{color:#e6efea}
+details.cli{margin:12px 0}
+details.cli>summary{cursor:pointer;color:var(--accent);padding:6px 0}
 .warnbox{border:1px solid #4a3c1f;background:#1b1608;border-radius:12px;padding:16px 20px;margin:18px 0}
 details{border-bottom:1px solid var(--line);padding:14px 0}
 summary{cursor:pointer;overflow-wrap:anywhere}
@@ -705,6 +800,8 @@ section>p.links{display:flex;flex-wrap:wrap;gap:8px 22px;margin:12px 0}
 .related li{margin:0}
 a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:3px}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+details.devdetails{border:1px solid var(--line);border-radius:12px;padding:6px 18px;margin:30px 0}
+details.devdetails>summary{cursor:pointer;font-weight:700;font-size:17px;padding:12px 0}
 .tomorrow{font-weight:700;font-size:18px;border:1px solid #2f5a44;background:#0d1a15;border-radius:12px;padding:14px 18px;margin:18px 0}
 h1{text-wrap:balance;word-break:keep-all;overflow-wrap:anywhere}
 .sub{font-size:17px;color:var(--muted);margin:10px 0 22px;max-width:820px}
@@ -740,33 +837,28 @@ h1{text-wrap:balance;word-break:keep-all;overflow-wrap:anywhere}
 <nav><a class="brand" href="/">teai.</a><span><a href="/blog" id="blog-link" data-ja="実測記事一覧" data-en="Measured reports">実測記事一覧</a> · <a id="language" href="?lang=en">English</a></span></nav>
 <main>
 <header>
-<div class="eyebrow">MEASURED · <time datetime="{DATE}">{DATE}</time> JST · 203 TASKS × 6 MODELS × 2 CONDITIONS</div>
+<div class="eyebrow">実測 · <time datetime="{DATE}">{DATE}</time>（追試 <time datetime="{UPDATED}">{UPDATED}</time>）· 建築基準法203問 ＋ 天空率50問（＋追加20問）</div>
 <h1 data-ja="建築法規をAIに聞くなら、条文は貼り、計算は道具に。" data-en="Asking AI about building codes: paste the articles, leave the arithmetic to a tool.">建築法規をAIに聞くなら、条文は貼り、計算は道具に。</h1>
 <p class="sub" data-ja="建築基準法203問と天空率50問で、AIを実測しました。法規を調べる人・土地を見る人・システムを作る人の立場別に、今日からの使い方を最初にまとめています。" data-en="We measured AI on 203 Building Standard Law tasks and 50 sky-factor tasks. How to use the results today, for people who look up rules, assess lots or build systems, comes first.">建築基準法203問と天空率50問で、AIを実測しました。法規を調べる人・土地を見る人・システムを作る人の立場別に、今日からの使い方を最初にまとめています。</p>
 <nav class="toc" aria-label="目次" data-aria-en="Contents">
 <a href="#use" data-ja="使い方" data-en="How to use this">使い方</a>
 <a href="#results" data-ja="結果" data-en="Results">結果</a>
 <a href="#sky" data-ja="天空率" data-en="Sky factor">天空率</a>
-<a href="#repeat" data-ja="根拠の詳細（開発者向け）" data-en="Details for developers">根拠の詳細（開発者向け）</a>
+<a href="#details" data-ja="根拠の詳細（開発者向け）" data-en="Details for developers">根拠の詳細（開発者向け）</a>
 <a href="#data" data-ja="記録データ" data-en="Evidence">記録データ</a>
 </nav>
 <div class="tldr">
 <p><strong data-ja="要点" data-en="In short">要点</strong></p>
 <ul>
 {use_tldr}
-<li data-ja="関係する条文を一緒に渡すと、測った6モデルすべての正解率が上がった。ChatGPTと同じ系統のGPT-5.5でも {pct(base['openai/gpt-5.5']['accuracy'])} → {pct(rag['openai/gpt-5.5']['accuracy'])}。" data-en="Supplying the relevant articles raised all six models measured; even GPT-5.5, the ChatGPT family, went {pct(base['openai/gpt-5.5']['accuracy'])} → {pct(rag['openai/gpt-5.5']['accuracy'])}.">関係する条文を一緒に渡すと、測った6モデルすべての正解率が上がった。ChatGPTと同じ系統のGPT-5.5でも {pct(base['openai/gpt-5.5']['accuracy'])} → {pct(rag['openai/gpt-5.5']['accuracy'])}。</li>
-<li data-ja="同じ質問でも答えが変わることがある。最安クラスのモデルは同じ質問40回のうち{total_short}回が即答で全部不正解、別の安価なモデルも2回目の測定で203問中20問の正誤が入れ替わった。大事な数字は2回聞いて照らし合わせる。" data-en="The same question can get different answers: the cheapest model answered {total_short} of 40 identical requests instantly, all wrong, and another low-cost model flipped 20 of 203 on a second run. Ask twice for figures that matter.">同じ質問でも答えが変わることがある。最安クラスのモデルは同じ質問40回のうち{total_short}回が即答で全部不正解、別の安価なモデルも2回目の測定で203問中20問の正誤が入れ替わった。大事な数字は2回聞いて照らし合わせる。</li>
 </ul>
 </div>
-<div class="note"><p data-ja="正解は e-Gov 法令API の条文と、条文の式に数値を入れた決定論的計算だけから作りました。採点にLLMは使っていません。203問・全応答・採点理由・実行コマンドを下記のJSONで公開しています（採点コード自体は非公開リポジトリです）。" data-en="Answers were generated only from e-Gov law text and deterministic arithmetic on the article's formula. No LLM is used for grading. All 203 tasks, every response with its grading reason, and the run commands are published in the JSON below (the grader code itself is in a private repository).">正解は e-Gov 法令API の条文と、条文の式に数値を入れた決定論的計算だけから作りました。採点にLLMは使っていません。203問・全応答・採点理由・実行コマンドを下記のJSONで公開しています（採点コード自体は非公開リポジトリです）。</p></div>
-<p data-ja="teai は、複数のモデルを同じAPI・同じ料金体系で使えるサービスです。この記事はその測定記録です。" data-en="teai lets you use several models through one API and one billing system. This article is a measurement record from that route.">teai は、複数のモデルを同じAPI・同じ料金体系で使えるサービスです。この記事はその測定記録です。</p>
-<p data-ja="測定経路である teai.io の開発者による実測です。独立第三者評価ではありません。" data-en="Measured by the developer of teai.io, the API route under test. This is not an independent third-party evaluation.">測定経路である teai.io の開発者による実測です。独立第三者評価ではありません。</p>
+<p class="note" data-ja="この記事は、複数のAIモデルを1つのAPIで使えるサービス teai の開発者による実測で、独立した第三者の評価ではありません。正解は e-Gov 法令APIの条文と条文の式による計算だけから作り、採点にAIは使っていません。全応答と採点理由はJSONで公開しています（採点コードは非公開）。" data-en="This is a measurement by the developer of teai, a service that runs many AI models behind one API; it is not an independent evaluation. Answers come only from e-Gov law text and the articles’ formulas, with no AI grader. Every response and grading reason is published as JSON (grader code is private).">この記事は、複数のAIモデルを1つのAPIで使えるサービス teai の開発者による実測で、独立した第三者の評価ではありません。正解は e-Gov 法令APIの条文と条文の式による計算だけから作り、採点にAIは使っていません。全応答と採点理由はJSONで公開しています（採点コードは非公開）。</p>
 </header>
 {use_section}
 
 <section id="results">
-<p class="note" data-ja="ここから先は測定の詳細です。設計者の方は「天空率」の節まで飛ばして構いません。" data-en="From here on are measurement details. Designers can skip ahead to the sky-factor section.">ここから先は測定の詳細です。設計者の方は「天空率」の節まで飛ばして構いません。</p>
-<p class="links"><a href="#sky" data-ja="天空率の節へ →" data-en="Go to the sky factor →">天空率の節へ →</a></p>
+<p class="note" data-ja="次の表は、条文を渡すかどうかで正解率がどう変わったかです。設計者の方は表の下の「天空率」まで読めば十分です。" data-en="The table below shows how supplying the articles changed accuracy. Designers can stop after the sky-factor section that follows.">次の表は、条文を渡すかどうかで正解率がどう変わったかです。設計者の方は表の下の「天空率」まで読めば十分です。</p>
 <h2 data-ja="結果：条文を渡すと、ほぼ別のモデルになる" data-en="Results: with the articles, these are almost different models">結果：条文を渡すと、ほぼ別のモデルになる</h2>
 <div class="scroll" tabindex="0" role="region" aria-label="表（横にスクロールできます）" data-aria-en="Table (scrolls horizontally)"><table class="wide">
 <caption data-ja="6モデルの正解率・費用・待ち時間（条文あり）" data-en="Accuracy, cost and latency for six models (with articles)">6モデルの正解率・費用・待ち時間（条文あり）</caption>
@@ -774,6 +866,7 @@ h1{text-wrap:balance;word-break:keep-all;overflow-wrap:anywhere}
 <tbody>
 {body_rows}
 </tbody></table></div>
+<p class="note" data-ja="採点は「回答の中に正解の数値が含まれれば正解」のため、やや甘く出ます。回答の最後の答えだけで厳しく採点し直すと、条文ありの正解率は {strict_txt} でした（下げ幅は最大{strict_drop:.1f}ポイント）。結論は変わりません。" data-en="Grading counts a response as correct if the right value appears anywhere, so it is slightly generous. Re-graded strictly on the final answer only, accuracy with articles was {strict_txt} (at most {strict_drop:.1f} points lower). The conclusion holds.">採点は「回答の中に正解の数値が含まれれば正解」のため、やや甘く出ます。回答の最後の答えだけで厳しく採点し直すと、条文ありの正解率は {strict_txt} でした（下げ幅は最大{strict_drop:.1f}ポイント）。結論は変わりません。</p>
 <figure class="bars">
 <figcaption data-ja="条文なし → 条文ありの正解率（203問）" data-en="Accuracy without articles → with articles (203 tasks)">条文なし → 条文ありの正解率（203問）</figcaption>
 {bar_rows}
@@ -787,6 +880,9 @@ h1{text-wrap:balance;word-break:keep-all;overflow-wrap:anywhere}
 </div>
 </section>
 
+{sky_section}
+<details id="details" class="devdetails">
+<summary data-ja="開発者・検証向けの詳細（種別ごとの結果・40回の反復・費用・実例・条件と限界・導入時の判断）" data-en="Details for developers and reviewers (by type, 40 repeats, cost, examples, conditions, deployment decisions)">開発者・検証向けの詳細（種別ごとの結果・40回の反復・費用・実例・条件と限界・導入時の判断）</summary>
 <section id="by-kind">
 <h2 data-ja="種別ごと：採光と容積率で、モデル差が最も開く" data-en="By task type: daylight and FAR separate the models most">種別ごと：採光と容積率で、モデル差が最も開く</h2>
 <p data-ja="条文を渡した状態の内訳です。数値穴埋めは6モデルすべて100%、誤り検出も96%以上でした。Qwen3.5 Flash を除く5モデルでは、7項目すべてが{rest_min:.0f}%以上に収まっています。開きが最も大きいのは Qwen の採光補正係数（{qwen_daylight:.0f}%）で、その行を外すと最大の差は応用計算の {rest_applied0:.0f}%〜{rest_applied1:.0f}% になります。応用計算は、前面道路の制限で容積率を決め、敷地面積を掛け、建蔽率側と並べて答える2段の計算です。" data-en="Breakdown with articles supplied. Numeric cloze was 100% for all six models and false-claim checks stayed above 96%. Excluding Qwen3.5 Flash, the other five stay at {rest_min:.0f}% or above on all seven types. The widest gap is Qwen's daylight score ({qwen_daylight:.0f}%); drop that row and the largest remaining spread is applied at {rest_applied0:.0f}–{rest_applied1:.0f}%. Applied means: derive the FAR cap from the front-road limit, multiply by site area, then answer alongside the BCR figure.">条文を渡した状態の内訳です。数値穴埋めは6モデルすべて100%、誤り検出も96%以上でした。Qwen3.5 Flash を除く5モデルでは、7項目すべてが{rest_min:.0f}%以上に収まっています。開きが最も大きいのは Qwen の採光補正係数（{qwen_daylight:.0f}%）で、その行を外すと最大の差は応用計算の {rest_applied0:.0f}%〜{rest_applied1:.0f}% になります。応用計算は、前面道路の制限で容積率を決め、敷地面積を掛け、建蔽率側と並べて答える2段の計算です。</p>
@@ -874,7 +970,6 @@ h1{text-wrap:balance;word-break:keep-all;overflow-wrap:anywhere}
 <p class="warnbox" data-ja="限界：これは小さな自作ベンチマークで、新しい非公開テストではありません。長文コンテキスト・画像・自由作文・コード開発・エージェント動作は対象外です。単一モデルの分散は qwen と nano でしか測っておらず、他の4モデルは1回だけです。40回の反復は1問（day-000）だけで、他の202問で同じ振れが起きる頻度は測っていません。203問・1回の測定なので、95%信頼区間（Wilson）は正解率によって幅が変わります。今回の実測では GPT-5.5 の 99.5% で 97.3〜99.9（幅2.7pt）、Qwen の 61.1% で 54.2〜67.5（幅13.3pt）でした。上位5モデルは 93〜99.5% に固まっており、その差（例: 99.5% と 99.0%）は区間が重なるため測定では区別できません。公表時点の上流の構成や混雑で、応答時間も応答の型も変わります。" data-en="Limits: this is a small synthetic benchmark, not a fresh hidden test. Long context, images, open-ended writing, coding projects and agent behaviour are out of scope. Variance was measured only for qwen and nano; the other four models were run once. The 40 repeats cover a single task (day-000); how often the same split occurs on the other 202 is unmeasured. With 203 tasks and one run, the Wilson 95% interval depends on the score: in this data it spans 97.3–99.9 (2.7 points wide) at GPT-5.5's 99.5%, and 54.2–67.5 (13.3 points) at Qwen's 61.1%. The top five models sit between 93% and 99.5%, and their gaps (e.g. 99.5% vs 99.0%) fall inside overlapping intervals, so this measurement cannot separate them. Upstream routing and load change both latency and response type.">限界：これは小さな自作ベンチマークで、新しい非公開テストではありません。長文コンテキスト・画像・自由作文・コード開発・エージェント動作は対象外です。単一モデルの分散は qwen と nano でしか測っておらず、他の4モデルは1回だけです。公表時点の上流の構成や混雑で、応答時間も応答の型も変わります。</p>
 </section>
 
-{sky_section}
 <section id="practice">
 <h2 data-ja="実務で使うなら、この3つを先に決める" data-en="If you put this into production, decide these three first">実務で使うなら、この3つを先に決める</h2>
 <div class="scroll" tabindex="0" role="region" aria-label="表（横にスクロールできます）" data-aria-en="Table (scrolls horizontally)"><table>
@@ -907,6 +1002,7 @@ h1{text-wrap:balance;word-break:keep-all;overflow-wrap:anywhere}
 </div>
 </section>
 
+</details>
 <section id="data">
 <h2 data-ja="記録を確かめる" data-en="Inspect the evidence">記録を確かめる</h2>
 <p><a href="/blog-assets/{ASSET}.json" data-ja="203問の全文・全応答・採点理由・反復プローブ・実行コマンド（JSON）" data-en="All 203 tasks, every response with grading reasons, the repeat probes and run commands (JSON)">203問の全文・全応答・採点理由・反復プローブ・実行コマンド（JSON）</a></p>
@@ -921,7 +1017,7 @@ h1{text-wrap:balance;word-break:keep-all;overflow-wrap:anywhere}
 </ul>
 </section>
 </main>
-<footer><span data-ja="実測・執筆：teai.io · {DATE}（JST）" data-en="Measured and written by teai.io · {DATE} (JST)">実測・執筆：teai.io · {DATE}（JST）</span> · <a href="/blog" data-ja="実測記事一覧" data-en="More measured reports">実測記事一覧</a></footer>
+<footer><span data-ja="実測・執筆：teai.io · {DATE}（追試・改訂 {UPDATED}、JST）" data-en="Measured and written by teai.io · {DATE} (follow-up {UPDATED}, JST)">実測・執筆：teai.io · {DATE}（追試・改訂 {UPDATED}、JST）</span> · <a href="/blog" data-ja="実測記事一覧" data-en="More measured reports">実測記事一覧</a></footer>
 <script>
 (() => {{
   const en = new URLSearchParams(location.search).get('lang') === 'en';

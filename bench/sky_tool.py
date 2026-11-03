@@ -155,8 +155,14 @@ def ask(question: str, verbose: bool = True) -> str:
 
 # ---------------------------------------------------------------- コマンドライン
 
-def _nums(s: str) -> list[float]:
-    return [float(v) for v in s.split(",")]
+def _nums(s: str, n: int | None = None) -> list[float]:
+    try:
+        v = [float(x) for x in s.split(",")]
+    except ValueError:
+        sys.exit(f"数値として読めません: {s}")
+    if n is not None and len(v) != n:
+        sys.exit(f"値の数が違います（{n}個必要・カンマ区切り）: {s}")
+    return v
 
 
 def main(argv: list[str]) -> int:
@@ -169,9 +175,9 @@ def main(argv: list[str]) -> int:
         it = iter(rest)
         for a in it:
             if a == "--point":
-                point = _nums(next(it))
+                point = _nums(next(it), 2)
             elif a == "--box":
-                x0, x1, y0, y1, h = _nums(next(it))
+                x0, x1, y0, y1, h = _nums(next(it), 5)
                 boxes.append(dict(x0=x0, x1=x1, y0=y0, y1=y1, h=h))
             elif a == "--z":
                 z = float(next(it))
@@ -197,7 +203,7 @@ def main(argv: list[str]) -> int:
         it = iter(rest)
         for a in it:
             if a in ("--plan", "--conf"):
-                x0, x1, y0, y1, h = _nums(next(it))
+                x0, x1, y0, y1, h = _nums(next(it), 5)
                 (plan if a == "--plan" else conf).append(dict(x0=x0, x1=x1, y0=y0, y1=y1, h=h))
             else:
                 kv[a] = next(it)
