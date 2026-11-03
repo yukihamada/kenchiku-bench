@@ -720,20 +720,20 @@ h1{text-wrap:balance;word-break:keep-all;overflow-wrap:anywhere}
 <html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="icon" href="data:,">
 <title>建築法規をAIに聞くなら、条文は貼り、計算は道具に。 — 建築基準法203問＋天空率の実測 | teai</title>
-<meta name="description" content="建築基準法・同施行令の条文から機械的に作った203問を6モデルで実測。条文を渡すと最大+55ポイント改善する一方、同一リクエスト40回のうち{total_short}回が推論なしの即答で誤答した記録を公開します。" data-meta-ja="建築基準法・同施行令の条文から機械的に作った203問を6モデルで実測。条文を渡すと最大+55ポイント改善する一方、同一リクエスト40回のうち{total_short}回が推論なしの即答で誤答した記録を公開します。" data-meta-en="203 tasks generated mechanically from Japanese Building Standard Law articles, run across six models. Retrieval added up to 55 points — but in 40 identical requests, {total_short} came back with no reasoning and a wrong answer.">
+<meta name="description" content="建築基準法203問と天空率をAIで実測。天空率はAIの手計算だと最良でも52%、計算ツールを渡すと98%。設計・不動産・開発の立場別の使い方と、天空率の計算ツール（無料）を公開。" data-meta-ja="建築基準法203問と天空率をAIで実測。天空率はAIの手計算だと最良でも52%、計算ツールを渡すと98%。設計・不動産・開発の立場別の使い方と、天空率の計算ツール（無料）を公開。" data-meta-en="We measured AI on 203 Building Standard Law tasks and the sky factor: by hand, at best 52%; with a calculation tool, 98%. How to use it by role, plus a free sky-factor tool.">
 <link rel="canonical" href="https://teai.io/blog/{SLUG}">
 <link rel="alternate" hreflang="ja" href="https://teai.io/blog/{SLUG}">
 <link rel="alternate" hreflang="en" href="https://teai.io/blog/{SLUG}?lang=en">
-<meta property="og:title" content="建築法規をAIに聞くなら、条文は貼り、計算は道具に。 — 建築基準法203問＋天空率の実測 | teai" data-meta-ja="建築法規をAIに聞くなら、条文は貼り、計算は道具に。 — 建築基準法203問＋天空率の実測 | teai" data-meta-en="We asked the same question 40 times. It came back two different ways.">
-<meta property="og:description" content="203問×6モデル。条文を渡すと最大+55ポイント。同じリクエストが推論あり／なしの2挙動で返り、精度が{total_short}/{len(pr)}で分かれた記録。" data-meta-ja="203問×6モデル。条文を渡すと最大+55ポイント。同じリクエストが推論あり／なしの2挙動で返り、精度が{total_short}/{len(pr)}で分かれた記録。" data-meta-en="203 tasks, six models, up to +55 points from retrieval. The same request came back with and without reasoning, splitting accuracy in {total_short} of {len(pr)} runs.">
+<meta property="og:title" content="建築法規をAIに聞くなら、条文は貼り、計算は道具に。 — 建築基準法203問＋天空率の実測 | teai" data-meta-ja="建築法規をAIに聞くなら、条文は貼り、計算は道具に。 — 建築基準法203問＋天空率の実測 | teai" data-meta-en="Asking AI about building codes: paste the articles, leave the arithmetic to a tool.">
+<meta property="og:description" content="建築基準法203問と天空率をAIで実測。天空率はAIの手計算だと最良でも52%、計算ツールを渡すと98%。設計・不動産・開発の立場別の使い方と、天空率の計算ツール（無料）を公開。" data-meta-ja="建築基準法203問と天空率をAIで実測。天空率はAIの手計算だと最良でも52%、計算ツールを渡すと98%。設計・不動産・開発の立場別の使い方と、天空率の計算ツール（無料）を公開。" data-meta-en="We measured AI on 203 Building Standard Law tasks and the sky factor: by hand, at best 52%; with a calculation tool, 98%. How to use it by role, plus a free sky-factor tool.">
 <meta property="og:type" content="article"><meta property="og:url" content="https://teai.io/blog/{SLUG}">
 <meta property="og:image" content="https://teai.io/og-kenchiku-benchmark.png">
 <meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="40回の応答のうち25回が推論ありで正解、15回が即答で不正解だったことを示す図" data-meta-ja="40回の応答のうち25回が推論ありで正解、15回が即答で不正解だったことを示す図" data-meta-en="A chart showing 25 of 40 responses reasoned and were correct, while 15 answered immediately and were wrong"><meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="建築法規をAIに聞くなら、条文は貼り、計算は道具に。">
-<meta name="twitter:description" content="203問×6モデル。条文を渡すと最大+55ポイント。同一リクエスト40回のうち15回が即答・全問不正解。">
+<meta name="twitter:description" content="建築基準法203問と天空率をAIで実測。天空率はAIの手計算だと最良でも52%、計算ツールを渡すと98%。設計・不動産・開発の立場別の使い方と、天空率の計算ツール（無料）を公開。">
 <meta name="twitter:image" content="https://teai.io/og-kenchiku-benchmark.png">
-<script type="application/ld+json">{{"@context":"https://schema.org","@type":"Article","headline":"建築法規をAIに聞くなら、条文は貼り、計算は道具に。","description":"建築基準法203問を6モデルで実測した記録。条文を渡すと最大+55.2ポイント、同一リクエスト40回のうち15回が即答で全問不正解。","datePublished":"{DATE}","dateModified":"{UPDATED}","inLanguage":"ja","url":"https://teai.io/blog/{SLUG}","image":"https://teai.io/og-kenchiku-benchmark.png","author":{{"@type":"Organization","name":"teai.io","url":"https://teai.io"}},"publisher":{{"@type":"Organization","name":"teai.io","url":"https://teai.io"}}}}</script>
+<script type="application/ld+json">{{"@context":"https://schema.org","@type":"Article","headline":"建築法規をAIに聞くなら、条文は貼り、計算は道具に。","description":"建築基準法203問と天空率をAIで実測。天空率はAIの手計算だと最良でも52%、計算ツールを渡すと98%。設計・不動産・開発の立場別の使い方と、天空率の計算ツール（無料）を公開。","datePublished":"{DATE}","dateModified":"{UPDATED}","inLanguage":"ja","url":"https://teai.io/blog/{SLUG}","image":"https://teai.io/og-kenchiku-benchmark.png","author":{{"@type":"Organization","name":"teai.io","url":"https://teai.io"}},"publisher":{{"@type":"Organization","name":"teai.io","url":"https://teai.io"}}}}</script>
 <style>{css}</style>
 </head><body>
 <a class="skip" href="#results" data-ja="本文へ移動" data-en="Skip to content">本文へ移動</a>
