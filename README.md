@@ -83,11 +83,12 @@ LLMの回答精度とは別に、bim.house / TSUGI の計算エンジンを同�
 ```bash
 # engine/ は mu-house のソースを相対パスで読み込む（隣に mu-house が必要）
 cd engine
-cargo build --bin far_check --bin bcr_check --bin app_check
+cargo build --bin far_check --bin bcr_check --bin app_check --bin daylight_check
 cd ..
 python3 bench/run_engine.py   # results/engine/summary.json
 ```
 
-実測（2026-11-07）: 容積率 30/30・面積上限 30/30・天空率 140/140（±0.3pt以内）。
-建蔽率は 13/30（法53条3項の角地・防火地域緩和が未実装）。採光は令20条の補正係数が未実装で対象外。
+実測（2026-11-07）: 容積率 30/30・面積上限 30/30・建蔽率 30/30・採光補正係数 40/40・天空率 140/140（±0.3pt以内）。
+建蔽率は法53条3項の角地+10%・防火地域（限度8/10を除く）耐火+10%・準防火の耐火/準耐火+10%まで実装済み。
+採光は令20条2項の採光補正係数（住居系6.0·D/H-1.4、工業系8.0·D/H-1.0、商業系10.0·D/H-1.0、道路面下限1.0、天窓×3、縁側×0.7）を実装済み。
 詳細は [REPORT.md](REPORT.md) の「エンジン採点」。

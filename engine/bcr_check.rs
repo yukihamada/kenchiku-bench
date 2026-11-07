@@ -17,10 +17,27 @@ fn main() {
         let norm = t["norm"].as_str().unwrap();
         let expected: f64 = norm.trim_start_matches("frac:").parse().unwrap();
 
+        let corner = t["corner"].as_bool().unwrap_or(false);
+        let fireproof = t["fireproof"].as_bool().unwrap_or(false);
+        let quasi_fireproof = t["quasi_fireproof"].as_bool().unwrap_or(false);
+        let in_fire = t["in_fire"].as_bool().unwrap_or(false);
+        let in_quasi = t["in_quasi"].as_bool().unwrap_or(false);
+        let fire_district = if in_fire {
+            Some("防火地域".to_string())
+        } else if in_quasi {
+            Some("準防火地域".to_string())
+        } else {
+            None
+        };
+
         let lim = houki_engine::zoning_limits(zone);
         let site = SiteContext {
             zoning: zone.to_string(),
             land_area_m2: 100.0,
+            fire_district,
+            corner_lot: corner,
+            fireproof,
+            quasi_fireproof,
             rule_override: Some(ZoningRuleOverride {
                 coverage_pct_max: planned * 100.0,
                 far_pct_max: lim.far_pct_max,

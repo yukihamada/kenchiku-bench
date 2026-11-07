@@ -21,3 +21,7 @@ path = "bcr_check.rs"
 [[bin]]
 name = "app_check"
 path = "app_check.rs"
+
+[[bin]]
+name = "daylight_check"
+path = "daylight_check.rs"

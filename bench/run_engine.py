@@ -34,8 +34,14 @@ def dump_tasks(kind, path):
         elif kind == "calc_bcr":
             rows.append({"id": t["id"], "zone": c["zone"], "planned": c["planned"],
                          "corner": c["corner"], "fireproof": c["fireproof"],
-                         "in_fire": c["in_fire_zone"] or c["in_quasi_fire_zone"],
+                         "quasi_fireproof": c.get("quasi_fireproof", False),
+                         "in_fire": c["in_fire_zone"],
+                         "in_quasi": c["in_quasi_fire_zone"],
                          "norm": t["answer_norm"]})
+        elif kind == "calc_daylight":
+            rows.append({"id": t["id"], "zone": c["zone"], "d": c["d"], "h": c["h"],
+                         "faces_road": c["faces_road"], "skylight": c.get("skylight", False),
+                         "engawa": c.get("engawa", False), "norm": t["answer_norm"]})
         elif kind == "applied":
             rows.append({"id": t["id"], "zone": c["zone"], "site": c["site"],
                          "planned_far": c["planned_far"], "planned_bcr": c["planned_bcr"],
@@ -64,7 +70,7 @@ def main():
     miss = [l.split("\t") for l in lines if l.split("\t")[3] == "0"]
     summary["kinds"]["calc_bcr"] = {
         "n": n, "correct": ok, "accuracy": round(ok / n, 4),
-        "note": "法53条3項の角地・防火地域+10/20%緩和が未実装。不一致はすべて緩和分。",
+        "note": "法53条3項の角地・防火/準防火地域+10%緩和を実装。",
         "mismatch_ids": [m[0] for m in miss]}
 
     # applied
@@ -74,12 +80,15 @@ def main():
     summary["kinds"]["applied"] = {"n": n, "correct": ok, "accuracy": round(ok / n, 4),
                                    "note": "敷地×限度率。FAR/BCRの限度値から算出"}
 
-    # daylight (未実装)
-    n_day = sum(1 for l in open(os.path.join(ROOT, "data", "tasks.jsonl"))
-                if json.loads(l)["kind"] == "calc_daylight")
+    # daylight (令20条 採光補正係数)
+    p, n_day = dump_tasks("calc_daylight", None)
+    lines = run_bin("daylight_check", p)
+    ok_day = sum(int(l.split("\t")[3]) for l in lines)
+    miss_day = [l.split("\t") for l in lines if l.split("\t")[3] == "0"]
     summary["kinds"]["calc_daylight"] = {
-        "n": n_day, "correct": None, "accuracy": None,
-        "note": "令20条の採光補正係数(D/H)は未実装。窓面積/床面積≥1/7の別ロジックのみ。対象外。"}
+        "n": n_day, "correct": ok_day, "accuracy": round(ok_day / n_day, 4),
+        "note": "令20条2項の採光補正係数(D/H・道路面・天窓・縁側)を実装。",
+        "mismatch_ids": [m[0] for m in miss_day]}
 
     # sky crosscheck
     tsv = os.path.join(ROOT, "results", "sky-crosscheck", "rust_tateru_engine.tsv")

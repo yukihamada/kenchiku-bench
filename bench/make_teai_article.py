@@ -516,6 +516,93 @@ def build_sky(teai: str, skip_asset: bool) -> tuple[str, str]:
     return sec, tldr
 
 
+def build_engine() -> str:
+    """製品エンジン（houki-engine / tateru_engine）の採点＋モデル比較セクション。"""
+    p = os.path.join(ROOT, "results", "engine", "summary.json")
+    if not os.path.exists(p):
+        return ""
+    eng = json.load(open(p, encoding="utf-8"))["kinds"]
+
+    def row(kind, label_ja, label_en):
+        k = eng.get(kind)
+        if not k:
+            return ""
+        if k.get("accuracy") is None:
+            acc_ja = acc_en = "対象外"
+        else:
+            acc_ja = acc_en = f'{k["correct"]}/{k["n"]}（{k["accuracy"]*100:.1f}%）'
+        return (f'<tr><td data-ja="{label_ja}" data-en="{label_en}">{label_ja}</td>'
+                f'<td class="num">{k["n"]}</td><td class="num">{acc_ja}</td>'
+                f'<td data-ja="{esc(k["note"])}" data-en="{esc(k["note"])}">{esc(k["note"])}</td></tr>')
+
+    sky = eng.get("sky_crosscheck", {})
+    rows = "\n".join([
+        row("calc_far", "容積率", "Floor-area ratio"),
+        row("applied", "面積上限（2段計算）", "Area caps (two-step)"),
+        row("calc_bcr", "建蔽率", "Building coverage"),
+        row("calc_daylight", "採光補正係数", "Daylight factor"),
+    ])
+    sky_line = ""
+    if sky:
+        sky_line = (f'<li data-ja="天空率（別実装との突き合わせ）：{sky["n"]}問すべてが±0.3pt以内、最大差 {sky["max_diff_pt"]:.3f}pt・平均 {sky["mean_diff_pt"]:.3f}pt。'
+                    f'" data-en="Sky factor (against an independent implementation): all {sky["n"]} shapes within ±0.3 pt, max {sky["max_diff_pt"]:.3f} pt, mean {sky["mean_diff_pt"]:.3f} pt.">'
+                    f'天空率（別実装との突き合わせ）：{sky["n"]}問すべてが±0.3pt以内、最大差 {sky["max_diff_pt"]:.3f}pt・平均 {sky["mean_diff_pt"]:.3f}pt。</li>')
+
+    # ── モデル比較表（同じ種別で エンジン vs 各モデルのRAG精度）──
+    rag = summary("rag")
+    label_of = {m: lbl for m, lbl in ORDER}
+    kinds_ja = [("calc_bcr", "建蔽率", "BCR"), ("calc_far", "容積率", "FAR"),
+                ("calc_daylight", "採光補正係数", "Daylight"), ("applied", "応用計算（2段）", "Applied")]
+    # エンジン精度を種別ごとに引く
+    eng_acc = {k: (eng[k]["accuracy"] if eng.get(k) and eng[k].get("accuracy") is not None else None)
+               for k, _, _ in kinds_ja}
+
+    head_cells = "".join(
+        f'<th scope="col" class="num"><span data-ja="{lbl}" data-en="{lbl}">{lbl}</span></th>'
+        for m, lbl in ORDER)
+    cmp_rows = []
+    for kind, ja, en in kinds_ja:
+        cells = []
+        ea = eng_acc[kind]
+        eng_cell = f'{ea*100:.0f}%' if ea is not None else "—"
+        cells.append(f'<th scope="row" data-ja="{ja}" data-en="{en}">{ja}</th>')
+        cells.append(f'<td class="num eng-cell">{eng_cell}</td>')
+        best = max((rag[m]["by_kind"].get(kind, {}).get("accuracy", 0) for m, _ in ORDER), default=0)
+        for m, _ in ORDER:
+            a = rag[m]["by_kind"].get(kind, {}).get("accuracy")
+            if a is None:
+                cells.append('<td class="num">—</td>')
+            else:
+                cls = "num best-cell" if abs(a - best) < 1e-9 and best > 0 else "num"
+                cells.append(f'<td class="{cls}">{a*100:.0f}%</td>')
+        cmp_rows.append("<tr>" + "".join(cells) + "</tr>")
+    cmp_table = f"""<div class="scroll" tabindex="0" role="region" aria-label="表（横にスクロールできます）" data-aria-en="Table (scrolls horizontally)"><table>
+<caption data-ja="同じ種別で、計算エンジンと各AIモデル（条文あり）を比較（正答率）" data-en="Calculation engine vs each AI model (with articles), by task type (accuracy)">同じ種別で、計算エンジンと各AIモデル（条文あり）を比較（正答率）</caption>
+<thead><tr><th scope="col" data-ja="種別" data-en="Type">種別</th><th scope="col" class="num eng-cell" data-ja="エンジン" data-en="Engine">エンジン</th>{head_cells}</tr></thead>
+<tbody>
+{chr(10).join(cmp_rows)}
+</tbody></table></div>
+<p class="note" data-ja="エンジン列は mu-house の計算エンジン（決定論的）。他の列は各AIモデルが条文を渡されて答えた正答率。建蔽率・容積率・採光ではエンジンが満点、モデルは用途地域や緩和の取り違えで数%落とします。応用計算（2段）は両者とも高水準です。エンジンは条文を読む必要がなく、同じ入力なら常に同じ答えを返す点がAIとの違いです。" data-en="The engine column is mu-house's deterministic calculation engine. The other columns are each AI model's accuracy when given the articles. On BCR, FAR and daylight the engine is perfect while models lose a few percent to zoning and relief mix-ups. Applied (two-step) is high for both. The engine needs no article reading and always returns the same answer for the same input, which is the difference from an AI.">エンジン列は mu-house の計算エンジン（決定論的）。他の列は各AIモデルが条文を渡されて答えた正答率。建蔽率・容積率・採光ではエンジンが満点、モデルは用途地域や緩和の取り違えで数%落とします。応用計算（2段）は両者とも高水準です。エンジンは条文を読む必要がなく、同じ入力なら常に同じ答えを返す点がAIとの違いです。</p>"""
+
+    return f"""<section id="engine">
+<h2 data-ja="製品の計算エンジン自体も、同じ正解で採点した" data-en="We also scored the product's own calculation engine against the same ground truth">製品の計算エンジン自体も、同じ正解で採点した</h2>
+<p data-ja="ここまではAIモデルの回答を測ってきました。同じ正解データ（条文と決定論的計算から生成）を使えば、bim.house / TSUGI の計算エンジンそのものも採点できます。AIが正しく答えられるかとは別に、製品が出す数値が正しいかを測る層です。対象は mu-house の houki-engine（建蔽率・容積率・採光補正）と tateru_engine（天空率）。エンジンは mu-house のソースを直接読み込む小さなハーネスから呼び、結果は公開リポジトリの results/engine/summary.json に残しています。" data-en="So far we measured AI model answers. With the same ground truth (derived from law text and deterministic arithmetic), the calculation engine of bim.house / TSUGI can be scored too. This layer measures whether the numbers the product outputs are correct, separately from whether an AI can answer. Targets: mu-house's houki-engine (coverage, FAR, daylight correction) and tateru_engine (sky factor), called through a small harness that reads the mu-house sources directly; results are kept in results/engine/summary.json in the public repository.">ここまではAIモデルの回答を測ってきました。同じ正解データ（条文と決定論的計算から生成）を使えば、bim.house / TSUGI の計算エンジンそのものも採点できます。AIが正しく答えられるかとは別に、製品が出す数値が正しいかを測る層です。対象は mu-house の houki-engine（建蔽率・容積率・採光補正）と tateru_engine（天空率）。エンジンは mu-house のソースを直接読み込む小さなハーネスから呼び、結果は公開リポジトリの results/engine/summary.json に残しています。</p>
+{cmp_table}
+<div class="scroll" tabindex="0" role="region" aria-label="表（横にスクロールできます）" data-aria-en="Table (scrolls horizontally)"><table>
+<caption data-ja="計算エンジンの採点（2026-11-07）" data-en="Calculation-engine scores (2026-11-07)">計算エンジンの採点（2026-11-07）</caption>
+<thead><tr><th scope="col" data-ja="種別" data-en="Type">種別</th><th scope="col" class="num" data-ja="件数" data-en="n">件数</th><th scope="col" class="num" data-ja="一致" data-en="Match">一致</th><th scope="col" data-ja="備考" data-en="Note">備考</th></tr></thead>
+<tbody>
+{rows}
+</tbody></table></div>
+<ul>
+{sky_line}
+</ul>
+<p class="note" data-ja="読み方：容積率・面積上限・建蔽率・採光補正係数・天空率のすべてが正解データに満点で一致しました。建蔽率は法53条3項の角地+10%と防火地域（限度8/10を除く）・準防火地域の耐火/準耐火+10%の緩和まで実装済みです。採光は令20条2項の採光補正係数（住居系6.0·D/H-1.4、工業系8.0·D/H-1.0、商業系10.0·D/H-1.0、道路面の下限1.0、天窓×3、縁側×0.7）を実装しました。エンジンの採点コードも公開リポジトリに入れてあり、同じ手順で再現できます。" data-en="How to read it: FAR, area caps, BCR, the daylight correction factor and sky factor all matched the ground truth perfectly. BCR now includes the Article 53(3) relief: +10% for a corner lot, and +10% for fireproof buildings in fire districts (except 8/10 zones) and fireproof/quasi-fireproof buildings in quasi-fire districts. Daylight implements the Article 20(2) correction factor (residential 6.0·D/H-1.4, industrial 8.0·D/H-1.0, commercial 10.0·D/H-1.0, road-facing floor 1.0, skylight ×3, veranda ×0.7). The engine scoring code is in the public repository and reproducible by the same steps.">読み方：容積率・面積上限・建蔽率・採光補正係数・天空率のすべてが正解データに満点で一致しました。建蔽率は法53条3項の角地+10%と防火地域（限度8/10を除く）・準防火地域の耐火/準耐火+10%の緩和まで実装済みです。採光は令20条2項の採光補正係数（住居系6.0·D/H-1.4、工業系8.0·D/H-1.0、商業系10.0·D/H-1.0、道路面の下限1.0、天窓×3、縁側×0.7）を実装しました。エンジンの採点コードも公開リポジトリに入れてあり、同じ手順で再現できます。</p>
+</section>
+
+"""
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--teai", default=os.path.expanduser("~/workspace/teai.io"))
@@ -564,6 +651,7 @@ def main() -> int:
     total_req = n * 6 * 2
 
     sky_section, sky_tldr = build_sky(a.teai, a.skip_asset)
+    engine_section = build_engine()
     st = strict_scores()
     strict_txt = "・".join(f"{label} {pct(st[m][0])}" for m, label in ORDER)
     strict_drop = max(st[m][1] - st[m][0] for m, _ in ORDER) * 100
@@ -744,6 +832,8 @@ table{width:100%;border-collapse:collapse;font-size:14px;margin:8px 0 4px}
 th,td{padding:12px 11px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap;vertical-align:top}
 th{font-weight:600;color:#cfe3d8}
 td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.eng-cell{background:rgba(64,180,120,.14);font-weight:600}
+.best-cell{color:#7fe0a8;font-weight:600}
 .id{color:var(--muted);font-size:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 .weak{color:var(--warn)}
 .note{border-left:3px solid var(--accent);padding:4px 0 4px 18px;color:#d9e5df;font-size:15.5px}
@@ -847,6 +937,7 @@ h1{text-wrap:balance;word-break:keep-all;overflow-wrap:anywhere}
 <a href="#use" data-ja="使い方" data-en="How to use this">使い方</a>
 <a href="#results" data-ja="結果" data-en="Results">結果</a>
 <a href="#sky" data-ja="天空率" data-en="Sky factor">天空率</a>
+<a href="#engine" data-ja="エンジン採点" data-en="Engine scoring">エンジン採点</a>
 <a href="#details" data-ja="根拠の詳細（開発者向け）" data-en="Details for developers">根拠の詳細（開発者向け）</a>
 <a href="#data" data-ja="記録データ" data-en="Evidence">記録データ</a>
 </nav>
@@ -884,6 +975,7 @@ h1{text-wrap:balance;word-break:keep-all;overflow-wrap:anywhere}
 </section>
 
 {sky_section}
+{engine_section}
 <details id="details" class="devdetails">
 <summary data-ja="開発者・検証向けの詳細（種別ごとの結果・40回の反復・費用・実例・条件と限界・導入時の判断）" data-en="Details for developers and reviewers (by type, 40 repeats, cost, examples, conditions, deployment decisions)">開発者・検証向けの詳細（種別ごとの結果・40回の反復・費用・実例・条件と限界・導入時の判断）</summary>
 <section id="by-kind">
@@ -997,9 +1089,9 @@ h1{text-wrap:balance;word-break:keep-all;overflow-wrap:anywhere}
 <p class="note" data-ja="これは今回の203問での観測で、他の法令・他のモデルにそのまま当てはまる保証はありません。同じ手順を自分の条文で回せば、同じ形で確かめられます。" data-en="These are observations on these 203 tasks; they do not automatically transfer to other statutes or models. Running the same procedure on your own corpus tests it the same way.">これは今回の203問での観測で、他の法令・他のモデルにそのまま当てはまる保証はありません。同じ手順を自分の条文で回せば、同じ形で確かめられます。</p>
 <div class="cta">
 <p><strong data-ja="自分の条文で、同じ検査を回す" data-en="Run the same check on your own articles">自分の条文で、同じ検査を回す</strong></p>
-<p data-ja="203問と採点理由はJSONでそのまま検証できます。採点コードは非公開のため、同じ採点で別モデルを比べたい場合は個別に共有します。" data-en="The 203 tasks and their grading reasons can be checked directly in the JSON. The grader is private; ask us if you want to compare another model under identical grading.">203問と採点理由はJSONでそのまま検証できます。採点コードは非公開のため、同じ採点で別モデルを比べたい場合は個別に共有します。</p>
+<p data-ja="203問・全応答・採点理由・エンジン採点コードは github.com/yukihamada/kenchiku-bench（公開リポジトリ）でそのまま検証できます。同じ採点で別モデルを比べたい場合も、同じ手順で回せます。" data-en="The 203 tasks, every response, the grading reasons and the engine-scoring code can be checked directly at github.com/yukihamada/kenchiku-bench (public repository). To compare another model under the same grading, run the same steps.">203問・全応答・採点理由・エンジン採点コードは github.com/yukihamada/kenchiku-bench（公開リポジトリ）でそのまま検証できます。同じ採点で別モデルを比べたい場合も、同じ手順で回せます。</p>
 <p class="cta-links"><a class="btn" href="/blog-assets/kenchiku-bench-20261101.json" data-ja="証跡JSONを開く" data-en="Open the evidence JSON">証跡JSONを開く</a>
-<span class="muted-note" data-ja="採点コードは非公開リポジトリ（github.com/yukihamada/kenchiku-bench）にあり、必要な場合は個別に共有します" data-en="The grader lives in a private repository (github.com/yukihamada/kenchiku-bench); it can be shared on request">採点コードは非公開リポジトリ（github.com/yukihamada/kenchiku-bench）にあり、必要な場合は個別に共有します</span>
+<span class="muted-note" data-ja="採点コードとエンジン採点は公開リポジトリ github.com/yukihamada/kenchiku-bench にあります" data-en="The grader and engine-scoring code are in the public repository github.com/yukihamada/kenchiku-bench">採点コードとエンジン採点は公開リポジトリ github.com/yukihamada/kenchiku-bench にあります</span>
 <a href="/docs" data-ja="APIドキュメント" data-en="API docs">APIドキュメント</a>
 <a href="/pricing" data-ja="料金" data-en="Pricing">料金</a></p>
 </div>
@@ -1009,7 +1101,7 @@ h1{text-wrap:balance;word-break:keep-all;overflow-wrap:anywhere}
 <section id="data">
 <h2 data-ja="記録を確かめる" data-en="Inspect the evidence">記録を確かめる</h2>
 <p><a href="/blog-assets/{ASSET}.json" data-ja="203問の全文・全応答・採点理由・反復プローブ・実行コマンド（JSON）" data-en="All 203 tasks, every response with grading reasons, the repeat probes and run commands (JSON)">203問の全文・全応答・採点理由・反復プローブ・実行コマンド（JSON）</a></p>
-<p data-ja="測定コードとタスク生成コードは github.com/yukihamada/kenchiku-bench（非公開リポジトリ）にあり、公開している記録は上のJSONです。条文取得（corpus/fetch_laws.py）→タスク生成（bench/tasks.py）→自己テスト（bench/selftest.py）→測定（bench/run.py）の順で、測定しました（手順の記録としてJSONに収録）。コードは非公開なので、読者が確かめられるのはJSONの全応答と採点理由です。天空率の計算ツールだけは sky_tool.py として公開しています。" data-en="The measurement and task-generation code is at github.com/yukihamada/kenchiku-bench (a private repository); the public record is the JSON above. We ran, in order: fetch the law text (corpus/fetch_laws.py), generate tasks (bench/tasks.py), self-test (bench/selftest.py), measure (bench/run.py); the steps are recorded in the JSON. Because the code is private, what readers can verify is every response and grading reason in the JSON. Only the sky-factor tool is public, as sky_tool.py.">測定コードとタスク生成コードは github.com/yukihamada/kenchiku-bench（非公開リポジトリ）にあり、公開している記録は上のJSONです。条文取得（corpus/fetch_laws.py）→タスク生成（bench/tasks.py）→自己テスト（bench/selftest.py）→測定（bench/run.py）の順で、測定しました（手順の記録としてJSONに収録）。コードは非公開なので、読者が確かめられるのはJSONの全応答と採点理由です。天空率の計算ツールだけは sky_tool.py として公開しています。</p>
+<p data-ja="測定コードとタスク生成コードは github.com/yukihamada/kenchiku-bench（公開リポジトリ）にあります。条文取得（corpus/fetch_laws.py）→タスク生成（bench/tasks.py）→自己テスト（bench/selftest.py）→測定（bench/run.py）→エンジン採点（bench/run_engine.py）の順で実行しました。全応答・採点理由・エンジン採点結果はJSONとリポジトリで確かめられます。天空率の計算ツールは sky_tool.py として公開しています。" data-en="The measurement and task-generation code is at github.com/yukihamada/kenchiku-bench (a public repository). We ran, in order: fetch the law text (corpus/fetch_laws.py), generate tasks (bench/tasks.py), self-test (bench/selftest.py), measure (bench/run.py), score the engine (bench/run_engine.py). Every response, grading reason and engine result can be checked in the JSON and the repository. The sky-factor tool is public as sky_tool.py.">測定コードとタスク生成コードは github.com/yukihamada/kenchiku-bench（公開リポジトリ）にあります。条文取得（corpus/fetch_laws.py）→タスク生成（bench/tasks.py）→自己テスト（bench/selftest.py）→測定（bench/run.py）→エンジン採点（bench/run_engine.py）の順で実行しました。全応答・採点理由・エンジン採点結果はJSONとリポジトリで確かめられます。天空率の計算ツールは sky_tool.py として公開しています。</p>
 </section>
 <section id="related">
 <h2 data-ja="関連する実測" data-en="Related measurements">関連する実測</h2>

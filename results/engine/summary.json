@@ -10,28 +10,10 @@
     },
     "calc_bcr": {
       "n": 30,
-      "correct": 13,
-      "accuracy": 0.4333,
-      "note": "法53条3項の角地・防火地域+10/20%緩和が未実装。不一致はすべて緩和分。",
-      "mismatch_ids": [
-        "bcr-000",
-        "bcr-003",
-        "bcr-005",
-        "bcr-006",
-        "bcr-007",
-        "bcr-008",
-        "bcr-009",
-        "bcr-010",
-        "bcr-013",
-        "bcr-015",
-        "bcr-019",
-        "bcr-021",
-        "bcr-022",
-        "bcr-023",
-        "bcr-025",
-        "bcr-027",
-        "bcr-029"
-      ]
+      "correct": 30,
+      "accuracy": 1.0,
+      "note": "法53条3項の角地・防火/準防火地域+10%緩和を実装。",
+      "mismatch_ids": []
     },
     "applied": {
       "n": 30,
@@ -41,9 +23,10 @@
     },
     "calc_daylight": {
       "n": 40,
-      "correct": null,
-      "accuracy": null,
-      "note": "令20条の採光補正係数(D/H)は未実装。窓面積/床面積≥1/7の別ロジックのみ。対象外。"
+      "correct": 40,
+      "accuracy": 1.0,
+      "note": "令20条2項の採光補正係数(D/H・道路面・天窓・縁側)を実装。",
+      "mismatch_ids": []
     },
     "sky_crosscheck": {
       "n": 140,
