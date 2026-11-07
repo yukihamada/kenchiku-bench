@@ -1,0 +1,25 @@
+name: adversarial
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  adversarial:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # Rust本番エンジンとの差分テストは private な mu-house を要するため CI では回さない。
+      # ここでは Python 参照実装の性質テスト（値域・単調性・変換則）を検証する。
+      - name: property + metamorphic tests
+        run: python3 bench/adversarial.py --random 200000 --json adversarial-result.json
+      - name: upload result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: adversarial-result
+          path: adversarial-result.json
