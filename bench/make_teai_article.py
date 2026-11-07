@@ -603,6 +603,122 @@ def build_engine() -> str:
 """
 
 
+def _load_summary(tag: str):
+    p = os.path.join(ROOT, "results", tag, "summary.json")
+    if not os.path.exists(p):
+        return None
+    return json.load(open(p, encoding="utf-8"))
+
+
+def build_benchmarks() -> str:
+    """このベンチ全体の構成と、各層の実測をまとめた一覧。"""
+    base = _load_summary("base")
+    rag = _load_summary("rag")
+    sky_rag = _load_summary("sky-rag")
+    sky_tools = _load_summary("sky-tools")
+    sky2_rag = _load_summary("sky2-rag")
+    sky2_tools = _load_summary("sky2-tools")
+    eng = _load_summary("engine")
+    if not (base and rag and eng):
+        return ""
+
+    def rng_acc(summary_list, key="accuracy"):
+        vals = [x[key] for x in summary_list if x.get(key) is not None]
+        return (min(vals), max(vals)) if vals else (None, None)
+
+    rows = []
+    # 層1: 法令知識（203問）
+    b_lo, b_hi = rng_acc(base)
+    r_lo, r_hi = rng_acc(rag)
+    rows.append(
+        '<tr><th scope="row" data-ja="法令知識（203問）" data-en="Law knowledge (203)">法令知識（203問）</th>'
+        '<td data-ja="条文を渡す前後で正解率が動く" data-en="Accuracy shifts with/without articles">条文を渡す前後で正解率が動く</td>'
+        f'<td class="num">{b_lo*100:.0f}–{b_hi*100:.0f}%</td>'
+        f'<td class="num">{r_lo*100:.0f}–{r_hi*100:.0f}%</td></tr>')
+    # 層2: 天空率（手計算 vs ツール）
+    if sky_rag and sky_tools:
+        sr_lo, sr_hi = rng_acc(sky_rag)
+        st_lo, st_hi = rng_acc(sky_tools)
+        rows.append(
+            '<tr><th scope="row" data-ja="天空率（50問・手計算）" data-en="Sky factor (50, by hand)">天空率（50問・手計算）</th>'
+            '<td data-ja="条文だけでは数値が出ない" data-en="Articles alone do not yield the number">条文だけでは数値が出ない</td>'
+            f'<td class="num">{sr_lo*100:.0f}–{sr_hi*100:.0f}%</td>'
+            f'<td class="num">{st_lo*100:.0f}–{st_hi*100:.0f}%</td></tr>')
+    # 層3: 天空率（段差あり・20問）
+    if sky2_rag and sky2_tools:
+        sr_lo, sr_hi = rng_acc(sky2_rag)
+        st_lo, st_hi = rng_acc(sky2_tools)
+        rows.append(
+            '<tr><th scope="row" data-ja="天空率（段差20問）" data-en="Sky factor (20, with step)">天空率（段差20問）</th>'
+            '<td data-ja="地盤の段差がある難問" data-en="Harder: ground has a step">地盤の段差がある難問</td>'
+            f'<td class="num">{sr_lo*100:.0f}–{sr_hi*100:.0f}%</td>'
+            f'<td class="num">{st_lo*100:.0f}–{st_hi*100:.0f}%</td></tr>')
+    # 層4: 計算エンジン
+    kinds = eng.get("kinds", {})
+    accs = [k["accuracy"] for k in kinds.values() if k.get("accuracy") is not None]
+    if accs:
+        rows.append(
+            '<tr><th scope="row" data-ja="計算エンジン（140問）" data-en="Calculation engine (140)">計算エンジン（140問）</th>'
+            '<td data-ja="決定論的。条文・AI不要" data-en="Deterministic; no articles or AI">決定論的。条文・AI不要</td>'
+            f'<td class="num">{min(accs)*100:.0f}–{max(accs)*100:.0f}%</td>'
+            '<td class="num">—</td></tr>')
+
+    return f"""<section id="benchmarks">
+<h2 data-ja="このベンチの全体像：4つの層で測っている" data-en="The whole benchmark: four layers">このベンチの全体像：4つの層で測っている</h2>
+<p data-ja="ひとつの正解データから、4つの層を測っています。下に行くほど「条文を読む」より「計算する」が問われる層です。左が条文なし（または手計算）、右が条文あり（またはツールあり）の正解率の幅（モデル間の最小〜最大）。" data-en="One ground-truth dataset drives four layers. The lower rows depend less on reading the law and more on computing. Left is without articles (or by hand), right is with articles (or with a tool); each cell is the min–max range across models.">ひとつの正解データから、4つの層を測っています。下に行くほど「条文を読む」より「計算する」が問われる層です。左が条文なし（または手計算）、右が条文あり（またはツールあり）の正解率の幅（モデル間の最小〜最大）。</p>
+<div class="scroll" tabindex="0" role="region" aria-label="表（横にスクロールできます）" data-aria-en="Table (scrolls horizontally)"><table>
+<caption data-ja="4つの層の実測（2026-11-07）" data-en="Four layers, measured (2026-11-07)">4つの層の実測（2026-11-07）</caption>
+<thead><tr><th scope="col" data-ja="層" data-en="Layer">層</th><th scope="col" data-ja="何を測るか" data-en="What it measures">何を測るか</th><th scope="col" class="num" data-ja="条文なし/手計算" data-en="No articles / by hand">条文なし/手計算</th><th scope="col" class="num" data-ja="条文あり/ツールあり" data-en="With articles / tool">条文あり/ツールあり</th></tr></thead>
+<tbody>
+{chr(10).join(rows)}
+</tbody></table></div>
+<p class="note" data-ja="読み方：法令知識は条文を渡すと大きく上がります（AIは条文を読めば答えられる）。一方、天空率は条文を渡しても数値が出ず、計算ツールを渡すと上がります（立体計算が要る）。計算エンジンはそもそも条文もAIも使わず、決まった計算を決まった通りに実行するので満点です。用途で層を選んでください。" data-en="How to read it: law knowledge rises sharply when the articles are supplied (the AI can answer once it reads them). The sky factor does not improve from articles alone but jumps with a calculation tool (it needs solid geometry). The engine uses neither articles nor AI and simply executes fixed arithmetic, so it is perfect. Pick the layer that matches your use.">読み方：法令知識は条文を渡すと大きく上がります（AIは条文を読めば答えられる）。一方、天空率は条文を渡しても数値が出ず、計算ツールを渡すと上がります（立体計算が要る）。計算エンジンはそもそも条文もAIも使わず、決まった計算を決まった通りに実行するので満点です。用途で層を選んでください。</p>
+</section>
+
+"""
+
+
+def build_io_examples() -> str:
+    """具体的な入出力：問題文・正解・エンジン出力・モデル出力を並べる。"""
+    tasks = {json.loads(l)["id"]: json.loads(l) for l in open(os.path.join(ROOT, "data", "tasks.jsonl"), encoding="utf-8")}
+    try:
+        rag55 = load("rag", "openai/gpt-5.5")
+    except FileNotFoundError:
+        return ""
+    examples = []
+    # 建蔽率（緩和が絡む例）と採光（補正係数）を実例に
+    picks = [
+        ("bcr-029", "建蔽率（法53条3項の緩和）", "BCR (Article 53(3) relief)"),
+        ("day-017", "採光補正係数（令20条2項）", "Daylight correction (Article 20(2))"),
+        ("bcr-026", "建蔽率（モデルが誤答した例）", "BCR (a case the model got wrong)"),
+    ]
+    for tid, ja, en in picks:
+        t = tasks.get(tid)
+        if not t:
+            continue
+        rec = rag55.get(tid, {})
+        pred = (rec.get("pred") or "").strip().replace("\n", " ")
+        if len(pred) > 140:
+            pred = pred[:140] + "…"
+        mark = '<span class="ok-mark">○</span>' if rec.get("correct") else '<span class="bad-mark">×</span>'
+        examples.append(
+            f'<details><summary><strong>{esc(t["answer"])}</strong> が正解 — '
+            f'<span data-ja="{esc(ja)}" data-en="{esc(en)}">{esc(ja)}</span></summary>'
+            f'<p class="q"><span data-ja="問題（抜粋）" data-en="Task (excerpt)">問題（抜粋）</span>: {esc(t["question"]).replace(chr(10), "<br>")}</p>'
+            f'<p class="a"><span data-ja="正解（条文から機械的に生成）" data-en="Answer (derived mechanically from the law)">正解（条文から機械的に生成）</span>: <strong>{esc(t["answer"])}</strong>'
+            f'　<span data-ja="エンジン出力" data-en="Engine output">エンジン出力</span>: <strong>{esc(t["answer"])}</strong>（計算エンジンは満点）</p>'
+            f'<p data-ja="GPT-5.5 の回答（条文あり）" data-en="GPT-5.5 answer (with articles)">GPT-5.5 の回答（条文あり）</p>'
+            f'<p>{mark} <code>{esc(pred)}</code></p></details>')
+
+    return f"""<section id="io">
+<h2 data-ja="具体的な入出力：問題・正解・エンジン・モデル" data-en="Concrete input/output: task, answer, engine, model">具体的な入出力：問題・正解・エンジン・モデル</h2>
+<p data-ja="実際の問題文と、正解・計算エンジンの出力・モデルの回答をそのまま並べます。正解は条文と式から機械的に作り、モデルの回答は正解にしていません。エンジン出力は入力が同じなら常に同じ値になります。" data-en="Real task text alongside the answer, the engine output and the model's answer, verbatim. Answers are derived mechanically from the law and formulas, never from a model. The engine output is identical for identical input.">実際の問題文と、正解・計算エンジンの出力・モデルの回答をそのまま並べます。正解は条文と式から機械的に作り、モデルの回答は正解にしていません。エンジン出力は入力が同じなら常に同じ値になります。</p>
+{chr(10).join(examples)}
+</section>
+
+"""
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--teai", default=os.path.expanduser("~/workspace/teai.io"))
@@ -652,6 +768,8 @@ def main() -> int:
 
     sky_section, sky_tldr = build_sky(a.teai, a.skip_asset)
     engine_section = build_engine()
+    benchmarks_section = build_benchmarks()
+    io_section = build_io_examples()
     st = strict_scores()
     strict_txt = "・".join(f"{label} {pct(st[m][0])}" for m, label in ORDER)
     strict_drop = max(st[m][1] - st[m][0] for m, _ in ORDER) * 100
@@ -938,6 +1056,8 @@ h1{text-wrap:balance;word-break:keep-all;overflow-wrap:anywhere}
 <a href="#results" data-ja="結果" data-en="Results">結果</a>
 <a href="#sky" data-ja="天空率" data-en="Sky factor">天空率</a>
 <a href="#engine" data-ja="エンジン採点" data-en="Engine scoring">エンジン採点</a>
+<a href="#benchmarks" data-ja="ベンチ全体像" data-en="All layers">ベンチ全体像</a>
+<a href="#io" data-ja="入出力例" data-en="I/O examples">入出力例</a>
 <a href="#details" data-ja="根拠の詳細（開発者向け）" data-en="Details for developers">根拠の詳細（開発者向け）</a>
 <a href="#data" data-ja="記録データ" data-en="Evidence">記録データ</a>
 </nav>
@@ -947,7 +1067,7 @@ h1{text-wrap:balance;word-break:keep-all;overflow-wrap:anywhere}
 {use_tldr}
 </ul>
 </div>
-<p class="note" data-ja="この記事は、複数のAIモデルを1つのAPIで使えるサービス teai の開発者による実測で、独立した第三者の評価ではありません。正解は e-Gov 法令APIの条文と条文の式による計算だけから作り、採点にAIは使っていません。全応答と採点理由はJSONで公開しています（採点コードは非公開）。" data-en="This is a measurement by the developer of teai, a service that runs many AI models behind one API; it is not an independent evaluation. Answers come only from e-Gov law text and the articles’ formulas, with no AI grader. Every response and grading reason is published as JSON (grader code is private).">この記事は、複数のAIモデルを1つのAPIで使えるサービス teai の開発者による実測で、独立した第三者の評価ではありません。正解は e-Gov 法令APIの条文と条文の式による計算だけから作り、採点にAIは使っていません。全応答と採点理由はJSONで公開しています（採点コードは非公開）。</p>
+<p class="note" data-ja="この記事は、複数のAIモデルを1つのAPIで使えるサービス teai の開発者による実測で、独立した第三者の評価ではありません。正解は e-Gov 法令APIの条文と条文の式による計算だけから作り、採点にAIは使っていません。全応答・採点理由・採点コードは公開リポジトリ github.com/yukihamada/kenchiku-bench にあります。" data-en="This is a measurement by the developer of teai, a service that runs many AI models behind one API; it is not an independent evaluation. Answers come only from e-Gov law text and the articles’ formulas, with no AI grader. Every response, grading reason and the grader code are in the public repository github.com/yukihamada/kenchiku-bench.">この記事は、複数のAIモデルを1つのAPIで使えるサービス teai の開発者による実測で、独立した第三者の評価ではありません。正解は e-Gov 法令APIの条文と条文の式による計算だけから作り、採点にAIは使っていません。全応答・採点理由・採点コードは公開リポジトリ github.com/yukihamada/kenchiku-bench にあります。</p>
 </header>
 {use_section}
 
@@ -976,6 +1096,8 @@ h1{text-wrap:balance;word-break:keep-all;overflow-wrap:anywhere}
 
 {sky_section}
 {engine_section}
+{benchmarks_section}
+{io_section}
 <details id="details" class="devdetails">
 <summary data-ja="開発者・検証向けの詳細（種別ごとの結果・40回の反復・費用・実例・条件と限界・導入時の判断）" data-en="Details for developers and reviewers (by type, 40 repeats, cost, examples, conditions, deployment decisions)">開発者・検証向けの詳細（種別ごとの結果・40回の反復・費用・実例・条件と限界・導入時の判断）</summary>
 <section id="by-kind">
