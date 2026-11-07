@@ -1,0 +1,58 @@
+{
+  "engine": "mu-house houki-engine + tateru_engine",
+  "measured": "2026-11-07",
+  "kinds": {
+    "calc_far": {
+      "n": 30,
+      "correct": 30,
+      "accuracy": 1.0,
+      "note": "都市計画容積率を rule_override で供給"
+    },
+    "calc_bcr": {
+      "n": 30,
+      "correct": 13,
+      "accuracy": 0.4333,
+      "note": "法53条3項の角地・防火地域+10/20%緩和が未実装。不一致はすべて緩和分。",
+      "mismatch_ids": [
+        "bcr-000",
+        "bcr-003",
+        "bcr-005",
+        "bcr-006",
+        "bcr-007",
+        "bcr-008",
+        "bcr-009",
+        "bcr-010",
+        "bcr-013",
+        "bcr-015",
+        "bcr-019",
+        "bcr-021",
+        "bcr-022",
+        "bcr-023",
+        "bcr-025",
+        "bcr-027",
+        "bcr-029"
+      ]
+    },
+    "applied": {
+      "n": 30,
+      "correct": 30,
+      "accuracy": 1.0,
+      "note": "敷地×限度率。FAR/BCRの限度値から算出"
+    },
+    "calc_daylight": {
+      "n": 40,
+      "correct": null,
+      "accuracy": null,
+      "note": "令20条の採光補正係数(D/H)は未実装。窓面積/床面積≥1/7の別ロジックのみ。対象外。"
+    },
+    "sky_crosscheck": {
+      "n": 140,
+      "max_diff_pt": 0.1474,
+      "mean_diff_pt": 0.0118,
+      "median_diff_pt": 0.0054,
+      "within_0_3pt": 140,
+      "within_0_01pt": 93,
+      "note": "Python参照実装 vs Rust tateru_engine。±0.3pt以内を合格とする"
+    }
+  }
+}

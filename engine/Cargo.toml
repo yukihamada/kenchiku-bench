@@ -1,0 +1,23 @@
+[workspace]
+
+[package]
+name = "engine-bench"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde_json = "1"
+bim-core = { path = "../../mu-house/crates/bim-core" }
+houki-engine = { path = "../../mu-house/crates/houki-engine" }
+
+[[bin]]
+name = "far_check"
+path = "far_check.rs"
+
+[[bin]]
+name = "bcr_check"
+path = "bcr_check.rs"
+
+[[bin]]
+name = "app_check"
+path = "app_check.rs"

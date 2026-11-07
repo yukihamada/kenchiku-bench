@@ -1,0 +1,106 @@
+[openai/gpt-5.6-luna] 20/20 acc=0.850
+{
+ "model": "openai/gpt-5.6-luna",
+ "n": 20,
+ "accuracy": 0.85,
+ "accuracy_answered": 0.85,
+ "errors": 0,
+ "latency_median_s": 33.556,
+ "latency_p90_s": 74.454,
+ "cost_total_usd": 0.22189,
+ "cost_per_task_usd": 0.011095,
+ "prompt_tokens_median": 4787,
+ "by_kind": {
+  "calc_sky_grade": {
+   "n": 10,
+   "accuracy": 0.8
+  },
+  "sky_points_2road": {
+   "n": 10,
+   "accuracy": 0.9
+  }
+ },
+ "wall_s": 160.3,
+ "rag": true,
+ "tools": true
+}
+[openai/gpt-5.5] 20/20 acc=0.950
+{
+ "model": "openai/gpt-5.5",
+ "n": 20,
+ "accuracy": 0.95,
+ "accuracy_answered": 0.95,
+ "errors": 0,
+ "latency_median_s": 30.816,
+ "latency_p90_s": 98.355,
+ "cost_total_usd": 2.424145,
+ "cost_per_task_usd": 0.121207,
+ "prompt_tokens_median": 4784,
+ "by_kind": {
+  "calc_sky_grade": {
+   "n": 10,
+   "accuracy": 0.9
+  },
+  "sky_points_2road": {
+   "n": 10,
+   "accuracy": 1.0
+  }
+ },
+ "wall_s": 188.0,
+ "rag": true,
+ "tools": true
+}
+[google/gemini-3.5-flash] 20/20 acc=0.900
+{
+ "model": "google/gemini-3.5-flash",
+ "n": 20,
+ "accuracy": 0.9,
+ "accuracy_answered": 0.9,
+ "errors": 0,
+ "latency_median_s": 31.461,
+ "latency_p90_s": 108.195,
+ "cost_total_usd": 0.724006,
+ "cost_per_task_usd": 0.0362,
+ "prompt_tokens_median": 3376,
+ "by_kind": {
+  "calc_sky_grade": {
+   "n": 10,
+   "accuracy": 1.0
+  },
+  "sky_points_2road": {
+   "n": 10,
+   "accuracy": 0.8
+  }
+ },
+ "wall_s": 194.8,
+ "rag": true,
+ "tools": true
+}
+[openai/gpt-5.4-nano] 20/20 acc=0.800
+{
+ "model": "openai/gpt-5.4-nano",
+ "n": 20,
+ "accuracy": 0.8,
+ "accuracy_answered": 0.8,
+ "errors": 0,
+ "latency_median_s": 58.218,
+ "latency_p90_s": 141.452,
+ "cost_total_usd": 0.270918,
+ "cost_per_task_usd": 0.013546,
+ "prompt_tokens_median": 4784,
+ "by_kind": {
+  "calc_sky_grade": {
+   "n": 10,
+   "accuracy": 0.7
+  },
+  "sky_points_2road": {
+   "n": 10,
+   "accuracy": 0.9
+  }
+ },
+ "wall_s": 249.9,
+ "rag": true,
+ "tools": true
+}
+
+-> /Users/yukihamada/workspace/kenchiku-bench/results/sky2-tools/summary.json

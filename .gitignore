@@ -2,3 +2,5 @@ __pycache__/
 *.pyc
 .env
 corpus/raw/
+engine/target/
+engine/Cargo.lock

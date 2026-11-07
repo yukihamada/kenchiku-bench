@@ -1,0 +1,126 @@
+[openai/gpt-5.6-luna] 20/50 acc=1.000
+[openai/gpt-5.6-luna] 40/50 acc=0.975
+{
+ "model": "openai/gpt-5.6-luna",
+ "n": 50,
+ "accuracy": 0.98,
+ "accuracy_answered": 0.98,
+ "errors": 0,
+ "latency_median_s": 7.726,
+ "latency_p90_s": 9.463,
+ "cost_total_usd": 0.174075,
+ "cost_per_task_usd": 0.003482,
+ "prompt_tokens_median": 4606,
+ "by_kind": {
+  "calc_sky": {
+   "n": 20,
+   "accuracy": 1.0
+  },
+  "sky_compare": {
+   "n": 20,
+   "accuracy": 0.95
+  },
+  "sky_points": {
+   "n": 10,
+   "accuracy": 1.0
+  }
+ },
+ "wall_s": 60.3,
+ "rag": true,
+ "tools": true
+}
+[openai/gpt-5.5] 20/50 acc=1.000
+[openai/gpt-5.5] 40/50 acc=1.000
+{
+ "model": "openai/gpt-5.5",
+ "n": 50,
+ "accuracy": 1.0,
+ "accuracy_answered": 1.0,
+ "errors": 0,
+ "latency_median_s": 3.984,
+ "latency_p90_s": 27.82,
+ "cost_total_usd": 1.717275,
+ "cost_per_task_usd": 0.034346,
+ "prompt_tokens_median": 4606,
+ "by_kind": {
+  "calc_sky": {
+   "n": 20,
+   "accuracy": 1.0
+  },
+  "sky_compare": {
+   "n": 20,
+   "accuracy": 1.0
+  },
+  "sky_points": {
+   "n": 10,
+   "accuracy": 1.0
+  }
+ },
+ "wall_s": 70.5,
+ "rag": true,
+ "tools": true
+}
+[google/gemini-3.5-flash] 20/50 acc=1.000
+[google/gemini-3.5-flash] 40/50 acc=1.000
+{
+ "model": "google/gemini-3.5-flash",
+ "n": 50,
+ "accuracy": 1.0,
+ "accuracy_answered": 1.0,
+ "errors": 0,
+ "latency_median_s": 7.815,
+ "latency_p90_s": 18.582,
+ "cost_total_usd": 0.480679,
+ "cost_per_task_usd": 0.009614,
+ "prompt_tokens_median": 3620,
+ "by_kind": {
+  "calc_sky": {
+   "n": 20,
+   "accuracy": 1.0
+  },
+  "sky_compare": {
+   "n": 20,
+   "accuracy": 1.0
+  },
+  "sky_points": {
+   "n": 10,
+   "accuracy": 1.0
+  }
+ },
+ "wall_s": 83.0,
+ "rag": true,
+ "tools": true
+}
+[openai/gpt-5.4-nano] 20/50 acc=1.000
+[openai/gpt-5.4-nano] 40/50 acc=1.000
+{
+ "model": "openai/gpt-5.4-nano",
+ "n": 50,
+ "accuracy": 1.0,
+ "accuracy_answered": 1.0,
+ "errors": 0,
+ "latency_median_s": 4.974,
+ "latency_p90_s": 11.558,
+ "cost_total_usd": 0.088317,
+ "cost_per_task_usd": 0.001766,
+ "prompt_tokens_median": 4606,
+ "by_kind": {
+  "calc_sky": {
+   "n": 20,
+   "accuracy": 1.0
+  },
+  "sky_compare": {
+   "n": 20,
+   "accuracy": 1.0
+  },
+  "sky_points": {
+   "n": 10,
+   "accuracy": 1.0
+  }
+ },
+ "wall_s": 58.1,
+ "rag": true,
+ "tools": true
+}
+
+-> /Users/yukihamada/workspace/kenchiku-bench/results/sky-tools/summary.json

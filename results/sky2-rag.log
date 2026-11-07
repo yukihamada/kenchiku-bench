@@ -1,0 +1,106 @@
+[openai/gpt-5.6-luna] 20/20 acc=0.050
+{
+ "model": "openai/gpt-5.6-luna",
+ "n": 20,
+ "accuracy": 0.05,
+ "accuracy_answered": 0.5,
+ "errors": 18,
+ "latency_median_s": 100.38,
+ "latency_p90_s": 140.329,
+ "cost_total_usd": 0.017998,
+ "cost_per_task_usd": 0.008999,
+ "prompt_tokens_median": 1705,
+ "by_kind": {
+  "calc_sky_grade": {
+   "n": 10,
+   "accuracy": 0.1
+  },
+  "sky_points_2road": {
+   "n": 10,
+   "accuracy": 0.0
+  }
+ },
+ "wall_s": 245.2,
+ "rag": true,
+ "tools": false
+}
+[openai/gpt-5.5] 20/20 acc=0.000
+{
+ "model": "openai/gpt-5.5",
+ "n": 20,
+ "accuracy": 0.0,
+ "accuracy_answered": 0.0,
+ "errors": 20,
+ "latency_median_s": null,
+ "latency_p90_s": null,
+ "cost_total_usd": null,
+ "cost_per_task_usd": null,
+ "prompt_tokens_median": null,
+ "by_kind": {
+  "calc_sky_grade": {
+   "n": 10,
+   "accuracy": 0.0
+  },
+  "sky_points_2road": {
+   "n": 10,
+   "accuracy": 0.0
+  }
+ },
+ "wall_s": 252.5,
+ "rag": true,
+ "tools": false
+}
+[google/gemini-3.5-flash] 20/20 acc=0.350
+{
+ "model": "google/gemini-3.5-flash",
+ "n": 20,
+ "accuracy": 0.35,
+ "accuracy_answered": 0.4667,
+ "errors": 5,
+ "latency_median_s": 38.927,
+ "latency_p90_s": 159.419,
+ "cost_total_usd": 0.595651,
+ "cost_per_task_usd": 0.03971,
+ "prompt_tokens_median": 1318,
+ "by_kind": {
+  "calc_sky_grade": {
+   "n": 10,
+   "accuracy": 0.0
+  },
+  "sky_points_2road": {
+   "n": 10,
+   "accuracy": 0.7
+  }
+ },
+ "wall_s": 379.9,
+ "rag": true,
+ "tools": false
+}
+[openai/gpt-5.4-nano] 20/20 acc=0.300
+{
+ "model": "openai/gpt-5.4-nano",
+ "n": 20,
+ "accuracy": 0.3,
+ "accuracy_answered": 0.3,
+ "errors": 0,
+ "latency_median_s": 39.99,
+ "latency_p90_s": 85.926,
+ "cost_total_usd": 0.126373,
+ "cost_per_task_usd": 0.006319,
+ "prompt_tokens_median": 1868,
+ "by_kind": {
+  "calc_sky_grade": {
+   "n": 10,
+   "accuracy": 0.0
+  },
+  "sky_points_2road": {
+   "n": 10,
+   "accuracy": 0.6
+  }
+ },
+ "wall_s": 166.1,
+ "rag": true,
+ "tools": false
+}
+
+-> /Users/yukihamada/workspace/kenchiku-bench/results/sky2-rag/summary.json

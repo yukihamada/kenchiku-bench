@@ -74,3 +74,20 @@ bim.house の `/tochi/tateru`（`mu-house/src/tateru_engine.rs`）が別に計�
 外部依存なしの簡易ハイブリッド検索（BM25 + 見出し完全一致 + 5-gram 包含一致）。
 質問文の「第52条」等の明示参照は条文を直接引き、引用文は包含一致で引く。
 条文は上限 6000 字まで、渡された順に詰める（段落抜粋は精度が落ちた）。
+
+## エンジン採点（製品の計算そのものを測る）
+
+LLMの回答精度とは別に、bim.house / TSUGI の計算エンジンを同じ正解データで採点できる。
+対象は `mu-house` の `crates/houki-engine`（建蔽率・容積率）と `src/tateru_engine.rs`（天空率）。
+
+```bash
+# engine/ は mu-house のソースを相対パスで読み込む（隣に mu-house が必要）
+cd engine
+cargo build --bin far_check --bin bcr_check --bin app_check
+cd ..
+python3 bench/run_engine.py   # results/engine/summary.json
+```
+
+実測（2026-11-07）: 容積率 30/30・面積上限 30/30・天空率 140/140（±0.3pt以内）。
+建蔽率は 13/30（法53条3項の角地・防火地域緩和が未実装）。採光は令20条の補正係数が未実装で対象外。
+詳細は [REPORT.md](REPORT.md) の「エンジン採点」。
