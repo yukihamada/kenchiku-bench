@@ -626,6 +626,13 @@ def build_benchmarks() -> str:
         vals = [x[key] for x in summary_list if x.get(key) is not None]
         return (min(vals), max(vals)) if vals else (None, None)
 
+    def cost_total(summary_list):
+        return sum((x.get("cost_total_usd") or 0) for x in summary_list)
+
+    def cost_cell(summary_list):
+        c = cost_total(summary_list)
+        return f'<td class="num">${c:.2f}</td>' if c > 0 else '<td class="num">$0</td>'
+
     rows = []
     # 層1: 法令知識（203問）
     b_lo, b_hi = rng_acc(base)
@@ -634,7 +641,8 @@ def build_benchmarks() -> str:
         '<tr><th scope="row" data-ja="法令知識（203問）" data-en="Law knowledge (203)">法令知識（203問）</th>'
         '<td data-ja="条文を渡す前後で正解率が動く" data-en="Accuracy shifts with/without articles">条文を渡す前後で正解率が動く</td>'
         f'<td class="num">{b_lo*100:.0f}–{b_hi*100:.0f}%</td>'
-        f'<td class="num">{r_lo*100:.0f}–{r_hi*100:.0f}%</td></tr>')
+        f'<td class="num">{r_lo*100:.0f}–{r_hi*100:.0f}%</td>'
+        f'<td class="num">${cost_total(base)+cost_total(rag):.2f}</td></tr>')
     # 層2: 天空率（手計算 vs ツール）
     if sky_rag and sky_tools:
         sr_lo, sr_hi = rng_acc(sky_rag)
@@ -643,7 +651,8 @@ def build_benchmarks() -> str:
             '<tr><th scope="row" data-ja="天空率（50問・手計算）" data-en="Sky factor (50, by hand)">天空率（50問・手計算）</th>'
             '<td data-ja="条文だけでは数値が出ない" data-en="Articles alone do not yield the number">条文だけでは数値が出ない</td>'
             f'<td class="num">{sr_lo*100:.0f}–{sr_hi*100:.0f}%</td>'
-            f'<td class="num">{st_lo*100:.0f}–{st_hi*100:.0f}%</td></tr>')
+            f'<td class="num">{st_lo*100:.0f}–{st_hi*100:.0f}%</td>'
+            f'<td class="num">${cost_total(sky_rag)+cost_total(sky_tools):.2f}</td></tr>')
     # 層3: 天空率（段差あり・20問）
     if sky2_rag and sky2_tools:
         sr_lo, sr_hi = rng_acc(sky2_rag)
@@ -652,7 +661,8 @@ def build_benchmarks() -> str:
             '<tr><th scope="row" data-ja="天空率（段差20問）" data-en="Sky factor (20, with step)">天空率（段差20問）</th>'
             '<td data-ja="地盤の段差がある難問" data-en="Harder: ground has a step">地盤の段差がある難問</td>'
             f'<td class="num">{sr_lo*100:.0f}–{sr_hi*100:.0f}%</td>'
-            f'<td class="num">{st_lo*100:.0f}–{st_hi*100:.0f}%</td></tr>')
+            f'<td class="num">{st_lo*100:.0f}–{st_hi*100:.0f}%</td>'
+            f'<td class="num">${cost_total(sky2_rag)+cost_total(sky2_tools):.2f}</td></tr>')
     # 層4: 計算エンジン
     kinds = eng.get("kinds", {})
     accs = [k["accuracy"] for k in kinds.values() if k.get("accuracy") is not None]
@@ -661,18 +671,21 @@ def build_benchmarks() -> str:
             '<tr><th scope="row" data-ja="計算エンジン（140問）" data-en="Calculation engine (140)">計算エンジン（140問）</th>'
             '<td data-ja="決定論的。条文・AI不要" data-en="Deterministic; no articles or AI">決定論的。条文・AI不要</td>'
             f'<td class="num">{min(accs)*100:.0f}–{max(accs)*100:.0f}%</td>'
-            '<td class="num">—</td></tr>')
+            '<td class="num">—</td>'
+            '<td class="num">$0</td></tr>')
+
+    grand = cost_total(base) + cost_total(rag) + cost_total(sky_rag or []) + cost_total(sky_tools or []) + cost_total(sky2_rag or []) + cost_total(sky2_tools or [])
 
     return f"""<section id="benchmarks">
 <h2 data-ja="このベンチの全体像：4つの層で測っている" data-en="The whole benchmark: four layers">このベンチの全体像：4つの層で測っている</h2>
-<p data-ja="ひとつの正解データから、4つの層を測っています。下に行くほど「条文を読む」より「計算する」が問われる層です。左が条文なし（または手計算）、右が条文あり（またはツールあり）の正解率の幅（モデル間の最小〜最大）。" data-en="One ground-truth dataset drives four layers. The lower rows depend less on reading the law and more on computing. Left is without articles (or by hand), right is with articles (or with a tool); each cell is the min–max range across models.">ひとつの正解データから、4つの層を測っています。下に行くほど「条文を読む」より「計算する」が問われる層です。左が条文なし（または手計算）、右が条文あり（またはツールあり）の正解率の幅（モデル間の最小〜最大）。</p>
+<p data-ja="ひとつの正解データから、4つの層を測っています。下に行くほど「条文を読む」より「計算する」が問われる層です。左が条文なし（または手計算）、右が条文あり（またはツールあり）の正解率の幅（モデル間の最小〜最大）。右端はその層の実測にかかった費用（全モデル・全問の合計）です。" data-en="One ground-truth dataset drives four layers. The lower rows depend less on reading the law and more on computing. Left is without articles (or by hand), right is with articles (or with a tool); each cell is the min–max range across models. The right column is the measured cost of that layer (all models, all tasks).">ひとつの正解データから、4つの層を測っています。下に行くほど「条文を読む」より「計算する」が問われる層です。左が条文なし（または手計算）、右が条文あり（またはツールあり）の正解率の幅（モデル間の最小〜最大）。右端はその層の実測にかかった費用（全モデル・全問の合計）です。</p>
 <div class="scroll" tabindex="0" role="region" aria-label="表（横にスクロールできます）" data-aria-en="Table (scrolls horizontally)"><table>
 <caption data-ja="4つの層の実測（2026-11-07）" data-en="Four layers, measured (2026-11-07)">4つの層の実測（2026-11-07）</caption>
-<thead><tr><th scope="col" data-ja="層" data-en="Layer">層</th><th scope="col" data-ja="何を測るか" data-en="What it measures">何を測るか</th><th scope="col" class="num" data-ja="条文なし/手計算" data-en="No articles / by hand">条文なし/手計算</th><th scope="col" class="num" data-ja="条文あり/ツールあり" data-en="With articles / tool">条文あり/ツールあり</th></tr></thead>
+<thead><tr><th scope="col" data-ja="層" data-en="Layer">層</th><th scope="col" data-ja="何を測るか" data-en="What it measures">何を測るか</th><th scope="col" class="num" data-ja="条文なし/手計算" data-en="No articles / by hand">条文なし/手計算</th><th scope="col" class="num" data-ja="条文あり/ツールあり" data-en="With articles / tool">条文あり/ツールあり</th><th scope="col" class="num" data-ja="実測費用" data-en="Measured cost">実測費用</th></tr></thead>
 <tbody>
 {chr(10).join(rows)}
 </tbody></table></div>
-<p class="note" data-ja="読み方：法令知識は条文を渡すと大きく上がります（AIは条文を読めば答えられる）。一方、天空率は条文を渡しても数値が出ず、計算ツールを渡すと上がります（立体計算が要る）。計算エンジンはそもそも条文もAIも使わず、決まった計算を決まった通りに実行するので満点です。用途で層を選んでください。" data-en="How to read it: law knowledge rises sharply when the articles are supplied (the AI can answer once it reads them). The sky factor does not improve from articles alone but jumps with a calculation tool (it needs solid geometry). The engine uses neither articles nor AI and simply executes fixed arithmetic, so it is perfect. Pick the layer that matches your use.">読み方：法令知識は条文を渡すと大きく上がります（AIは条文を読めば答えられる）。一方、天空率は条文を渡しても数値が出ず、計算ツールを渡すと上がります（立体計算が要る）。計算エンジンはそもそも条文もAIも使わず、決まった計算を決まった通りに実行するので満点です。用途で層を選んでください。</p>
+<p class="note" data-ja="読み方：法令知識は条文を渡すと大きく上がります（AIは条文を読めば答えられる）。一方、天空率は条文を渡しても数値が出ず、計算ツールを渡すと上がります（立体計算が要る）。計算エンジンはそもそも条文もAIも使わず、決まった計算を決まった通りに実行するので満点・費用ゼロです。費用は返却トークン数×取得時の公開単価による推計で、全層を合わせて約 ${grand:.0f} でした。用途で層を選んでください。" data-en="How to read it: law knowledge rises sharply when the articles are supplied (the AI can answer once it reads them). The sky factor does not improve from articles alone but jumps with a calculation tool (it needs solid geometry). The engine uses neither articles nor AI and simply executes fixed arithmetic, so it is perfect and costs nothing. Cost is estimated as returned tokens × the public price captured at run time; all layers together came to about ${grand:.0f}. Pick the layer that matches your use.">読み方：法令知識は条文を渡すと大きく上がります（AIは条文を読めば答えられる）。一方、天空率は条文を渡しても数値が出ず、計算ツールを渡すと上がります（立体計算が要る）。計算エンジンはそもそも条文もAIも使わず、決まった計算を決まった通りに実行するので満点・費用ゼロです。費用は返却トークン数×取得時の公開単価による推計で、全層を合わせて約 ${grand:.0f} でした。用途で層を選んでください。</p>
 </section>
 
 """
@@ -701,14 +714,17 @@ def build_io_examples() -> str:
         if len(pred) > 140:
             pred = pred[:140] + "…"
         mark = '<span class="ok-mark">○</span>' if rec.get("correct") else '<span class="bad-mark">×</span>'
+        c = rec.get("cost_usd")
+        cost_line = (f'<span data-ja="この1問の費用" data-en="Cost for this task">この1問の費用</span>: ${c:.4f}'
+                     if c is not None else "")
         examples.append(
             f'<details><summary><strong>{esc(t["answer"])}</strong> が正解 — '
             f'<span data-ja="{esc(ja)}" data-en="{esc(en)}">{esc(ja)}</span></summary>'
             f'<p class="q"><span data-ja="問題（抜粋）" data-en="Task (excerpt)">問題（抜粋）</span>: {esc(t["question"]).replace(chr(10), "<br>")}</p>'
             f'<p class="a"><span data-ja="正解（条文から機械的に生成）" data-en="Answer (derived mechanically from the law)">正解（条文から機械的に生成）</span>: <strong>{esc(t["answer"])}</strong>'
-            f'　<span data-ja="エンジン出力" data-en="Engine output">エンジン出力</span>: <strong>{esc(t["answer"])}</strong>（計算エンジンは満点）</p>'
+            f'　<span data-ja="エンジン出力" data-en="Engine output">エンジン出力</span>: <strong>{esc(t["answer"])}</strong>（計算エンジンは満点・費用ゼロ）</p>'
             f'<p data-ja="GPT-5.5 の回答（条文あり）" data-en="GPT-5.5 answer (with articles)">GPT-5.5 の回答（条文あり）</p>'
-            f'<p>{mark} <code>{esc(pred)}</code></p></details>')
+            f'<p>{mark} <code>{esc(pred)}</code>　<span class="id">{cost_line}</span></p></details>')
 
     return f"""<section id="io">
 <h2 data-ja="具体的な入出力：問題・正解・エンジン・モデル" data-en="Concrete input/output: task, answer, engine, model">具体的な入出力：問題・正解・エンジン・モデル</h2>
