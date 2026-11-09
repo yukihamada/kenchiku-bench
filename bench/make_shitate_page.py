@@ -182,7 +182,8 @@ def main():
         cost = r.get("cost_per_task_usd")
         if acc is None or not cost:
             continue
-        pts.append((cost, acc, label))
+        show_label = label + ("*" if mid.startswith("qwen/") else "")
+        pts.append((cost, acc, show_label))
     if pts:
         sc_w, sc_h = 560, 340
         ml, mr, mt, mb = 58, 130, 24, 44  # 左・右・上・下マージン（右はラベル用）
@@ -210,15 +211,15 @@ def main():
                 f'<line x1="{ml}" y1="{y:.1f}" x2="{ml + pw}" y2="{y:.1f}" stroke="#e3e8ee" stroke-width="1"></line>'
                 f'<text x="{ml - 6}" y="{y + 3:.1f}" text-anchor="end" fill="#5a6675">{tick}%</text>'
             )
-        # 縦グリッド（コスト $0.001 / $0.01）
-        for c in (0.001, 0.01):
+        # 縦グリッド（コスト ¥0.15 / ¥1.5 = $0.001 / $0.01）
+        for c, yen_val in ((0.001, 0.15), (0.01, 1.5)):
             x = sx(c)
             sc.append(
                 f'<line x1="{x:.1f}" y1="{mt}" x2="{x:.1f}" y2="{mt + ph}" stroke="#e3e8ee" stroke-width="1"></line>'
-                f'<text x="{x:.1f}" y="{mt + ph + 16}" text-anchor="middle" fill="#5a6675">${c:g}</text>'
+                f'<text x="{x:.1f}" y="{mt + ph + 16}" text-anchor="middle" fill="#5a6675">¥{yen_val:g}</text>'
             )
         # 軸ラベル
-        sc.append(f'<text x="{ml + pw / 2:.1f}" y="{sc_h - 6}" text-anchor="middle" fill="#5a6675">1問あたりコスト（対数）</text>')
+        sc.append(f'<text x="{ml + pw / 2:.1f}" y="{sc_h - 6}" text-anchor="middle" fill="#5a6675">1問あたりコスト（円・対数、$1=¥150）</text>')
         # 点とラベル（右側にモデル名、重なりを避けるため y を少しずらす）
         for cost, acc, label in pts:
             x, y = sx(cost), sy(acc)
@@ -253,7 +254,7 @@ def main():
     others = []
     for tag, d in [("cn-rag", cn1), ("cn-rag2", cn2)]:
         for mid, x in d.items():
-            others.append((x["accuracy"], mid))
+            others.append((x["accuracy"], mid, x.get("cost_per_task_usd")))
     # Claude系（503復旧後に測定できた場合のみ）
     claude = load_summary("claude-rag", regraded=False)
     CLAUDE_LABEL = {
@@ -263,11 +264,12 @@ def main():
     }
     for mid, x in claude.items():
         if x.get("accuracy") is not None and (x.get("errors", 0) or 0) < (x.get("n", 1) or 1):
-            others.append((x["accuracy"], CLAUDE_LABEL.get(mid, mid)))
+            others.append((x["accuracy"], CLAUDE_LABEL.get(mid, mid), x.get("cost_per_task_usd")))
     others.sort(reverse=True)
     other_rows = "\n".join(
-        f'<tr><td>{esc(m)}</td><td class="num">{pct(acc)}</td></tr>'
-        for acc, m in others
+        f'<tr><td>{esc(m)}</td><td class="num">{pct(acc)}</td>'
+        f'<td class="num">{usd_yen(c) if c else "—"}</td></tr>'
+        for acc, m, c in others
     )
 
     # 天空率ツール併用（LLM単体の「回答分」→ ツール併用の段差を見せる）
@@ -428,7 +430,7 @@ def main():
     <strong>2026-11-09 の更新（重要）:</strong> 採光補正係数の採点にバグがあり、修正して全モデルを再採点しました。旧採点は回答の「最初の数値」を拾うため、途中式の水平距離 D を正解と誤読して系統的に過小評価していました。修正後は「最初か最後の数値のどちらかが正解なら正」としています。影響は主に計算系で、たとえば GPT-5.4 Nano のRAG正解率は {pct(nano_old)} → <strong>{pct(nano.get("accuracy",0))}</strong> に変わりました。以下の数字はすべて修正後の再採点値です（生ログと採点コードは公開リポジトリにあります）。
   </div>
 
-  <h2>結果（203問・temperature 0・各1回）</h2>
+  <h2>結果（203問・temperature 0・代表1回）</h2>
   <div class="btable-wrap">
   <table class="btable">
     <tr><th>モデル</th><th>条文なし</th><th>条文を渡す(RAG)</th><th>1問あたり</th><th>中央値</th></tr>
@@ -437,10 +439,10 @@ def main():
   </div>
   <p class="note">下のグラフは各モデルの<strong>条文なし（薄灰）</strong>と<strong>RAG＝条文を渡す（青）</strong>の正解率です。横軸は0〜100%。</p>
   <div class="btable-wrap">{gap_chart}</div>
-  <p class="note">こちらは<strong>精度とコストの関係</strong>です。横軸は1問あたりコスト（対数）、縦軸はRAG正解率。<strong>左上（安くて高精度）ほど実務向き</strong>で、GPT-5.4 Nano と GPT-5.6 Luna が効率的な位置にあります。Gemini 2.5 Flash は精度99.0%を2倍弱のコストで、GPT-5.5 は最高精度99.5%を約10倍のコストで買う形です。</p>
+  <p class="note">こちらは<strong>精度とコストの関係</strong>です。横軸は1問あたりコスト（円・対数）、縦軸はRAG正解率。<strong>左上（安くて高精度）ほど実務向き</strong>で、GPT-5.4 Nano と GPT-5.6 Luna が効率的な位置にあります。Gemini 2.5 Flash は精度99.0%を2倍弱のコストで、GPT-5.5 は最高精度99.5%を約10倍のコストで買う形です。<strong>*Qwen3.5 Flash の61.1%は能力値ではなく下限</strong>（出力欠損を含む。再測定では91.6%）。</p>
   <div class="btable-wrap">{scatter_chart}</div>
   <p>7種の内訳は 数値穴埋め23 / 条文同定27 / 建蔽率30 / 容積率30 / 採光補正係数40 / 誤り検出23 / 応用計算30。</p>
-  <p class="note">上位の差（99.0% と 99.5% など）は<strong>1回測定のノイズ域</strong>です。同じモデルを再測定すると ±1pt 程度は動きます（例: GPT-5.4 Nano は 95.6% → 96.5%）。順位のわずかな差ではなく「条文を渡すと大きく伸びる」という段差を見てください。</p>
+  <p class="note">上位の差（99.0% と 99.5% など）は<strong>1回測定のノイズ域</strong>です。同じモデルを再測定すると ±1pt 程度は動きます（例: GPT-5.4 Nano は 95.6% → 96.5%）。下表は代表1回の値で、主要3モデルは別途3回ずつ測って振れ幅を出しています（結果の下を参照）。順位のわずかな差ではなく「条文を渡すと大きく伸びる」という段差を見てください。</p>
   {"" if not var_available else '''<p class="note"><strong>主要3モデルは同一設定で3回ずつ測定しました。</strong>平均と振れ幅は次のとおりで、上位の差がノイズ域であることが数値で確認できます。</p>
   <div class="btable-wrap">
   <table class="btable">
@@ -488,7 +490,7 @@ def main():
   <h2>他のモデル（RAG時）</h2>
   <div class="btable-wrap">
   <table class="btable">
-    <tr><th>モデル</th><th>203問 正解率</th></tr>
+    <tr><th>モデル</th><th>203問 正解率</th><th>1問コスト</th></tr>
     {other_rows}
   </table>
   </div>
@@ -529,12 +531,15 @@ def main():
   <h2>確認申請前セルフチェックの実務フロー（1画面で回す例）</h2>
   <p>実際の確認申請前チェックは、次の順で回すと取りこぼしが減ります。<strong>条文RAGで根拠を引き、計算はエンジンに渡す</strong>の繰り返しです。</p>
   <ol>
-    <li><strong>容積率（法第52条）:</strong> 用途地域・都市計画容積率・前面道路幅を入れる。前面道路が12m未満なら幅員制限を計算し、都市計画値と<strong>小さい方</strong>を採る（→ 法規エンジン <code>far</code>）。</li>
-    <li><strong>建蔽率（法第53条）:</strong> 用途地域の基本値に、角地・防火地域の緩和を適用する（→ エンジン <code>bcr</code>）。</li>
-    <li><strong>採光（令第20条）:</strong> 用途地域係数×D/H−1.0 → 縁側補正×0.7 → 3.0上限、の順で計算する（→ エンジン <code>daylight</code>）。順序を逆にすると誤る（失敗例 day-020 参照）。</li>
-    <li><strong>天空率（令第135条の5〜9）:</strong> 手計算は非現実的なので、計算ツールに測定点を渡して判定する（→ <code>sky_tool.py</code>）。</li>
+    <li><strong>容積率（法第52条）:</strong> 用途地域・都市計画容積率・前面道路幅を入れる。前面道路が12m未満なら幅員制限を計算し、都市計画値と<strong>小さい方</strong>を採る（→ 参照実装 <code>far_limit()</code>、Rustエンジン <code>far_check</code>）。</li>
+    <li><strong>建蔽率（法第53条）:</strong> 用途地域の基本値に、角地・防火地域の緩和を適用する（→ <code>bcr_limit()</code> / <code>bcr_check</code>）。</li>
+    <li><strong>採光（令第20条）:</strong> 用途地域係数×D/H−1.0 → 縁側補正×0.7 → 3.0上限、の順で計算する（→ <code>daylight_coefficient()</code> / <code>daylight_check</code>）。順序を逆にすると誤る（失敗例 day-020 参照）。</li>
+    <li><strong>天空率（令第135条の5〜9）:</strong> 手計算は非現実的なので、計算ツールに測定点を渡して判定する（→ <code>bench/sky_tool.py</code>）。</li>
     <li><strong>根拠の確認:</strong> 各ステップの条番号を e-Gov で開き、条例・告示・特定行政庁の取り扱いを自治体の例規集で別途確認する。</li>
   </ol>
+  <p>たとえば容積率の1問は、Pythonの参照実装をそのまま呼べます（第2引数は都市計画容積率を分数で渡す）。</p>
+  <pre><code>$ python3 -c "import sys; sys.path.insert(0,'bench'); from tasks import far_limit; print(far_limit('工業専用地域', 1.5, 11.0))"
+1.5   # 前面道路11m×6/10=6.6 と都市計画15/10(=1.5) の小さい方 = 1.5</code></pre>
   <p class="note">この5ステップのうち1〜4は、条文の式をコード化した法規エンジンで満点相当まで安定します（上のエンジン表）。LLMは「どの条文を見るべきか」「この条件は該当するか」の整理役に使い、数値の確定はエンジンに任せるのが、実務で最も事故が少ない分担です。</p>
   <p>この実測は teai.io 経由で行いました。同じ条文RAGを次の3通りで試せます。</p>
   <ul>
