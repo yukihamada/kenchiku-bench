@@ -96,8 +96,13 @@ def yen(usd):
 
 
 def usd_yen(usd):
-    """本文用: ドルと円を併記して単位の混在をなくす。"""
-    return f"${usd:.4f}（≒¥{usd*JPY_PER_USD:.2f}）"
+    """本文用: ドルと円を併記して単位の混在をなくす。
+
+    円は表示しているドル（小数4桁に丸めた値）から換算し、
+    読者が $×150 で検算しても一致するようにする。
+    """
+    usd_r = round(usd, 4)
+    return f"${usd_r:.4f}（≒¥{usd_r*JPY_PER_USD:.2f}）"
 
 
 def esc(s):
@@ -162,7 +167,7 @@ def main():
         bw = chart_w * (b or 0)
         rw = chart_w * (r or 0)
         svg_parts.append(
-            f'<text x="0" y="{y + bar_h - 6}">{esc(label)}</text>'
+            f'<text x="0" y="{y + bar_h - 6}">{esc(label + ("*" if mid.startswith("qwen/") else ""))}</text>'
             f'<rect x="{label_w}" y="{y}" width="{bw:.1f}" height="{bar_h // 2}" '
             f'fill="#c9d4e0"></rect>'
             f'<rect x="{label_w}" y="{y + bar_h // 2}" width="{rw:.1f}" '
@@ -223,7 +228,24 @@ def main():
         # 点とラベル（右側にモデル名、重なりを避けるため y を少しずらす）
         for cost, acc, label in pts:
             x, y = sx(cost), sy(acc)
-            sc.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="4.5" fill="#2f6fb0"></circle>')
+            is_lower = label.endswith("*")
+            if is_lower:
+                # 下限値は中抜きの点で「実力値ではない」ことを視覚化
+                sc.append(
+                    f'<circle cx="{x:.1f}" cy="{y:.1f}" r="4.5" fill="#ffffff" '
+                    f'stroke="#2f6fb0" stroke-width="1.5"></circle>'
+                )
+                # 参考: 再測定の実力値（91.6%）を小さな点で併記
+                y2 = sy(0.916)
+                sc.append(
+                    f'<circle cx="{x:.1f}" cy="{y2:.1f}" r="3" fill="#2f6fb0"></circle>'
+                )
+                sc.append(
+                    f'<text x="{x + 8:.1f}" y="{y2 + 3:.1f}" fill="#5a6675" font-size="10">'
+                    f'参考 91.6%</text>'
+                )
+            else:
+                sc.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="4.5" fill="#2f6fb0"></circle>')
             sc.append(
                 f'<text x="{x + 8:.1f}" y="{y + 3:.1f}" fill="#1f2a36">{esc(label)} '
                 f'<tspan fill="#5a6675">{pct(acc)}</tspan></text>'
