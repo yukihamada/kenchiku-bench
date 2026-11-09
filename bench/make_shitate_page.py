@@ -65,12 +65,39 @@ def load_rows(tag, model):
     return [json.loads(l) for l in open(p, encoding="utf-8")]
 
 
+def variance(tags, model):
+    """複数回測定の正解率（mean, min, max, n_runs）。
+
+    tags は (tag, regraded) の組。rag は再採点済み（results-regraded）、
+    rag-var2/3 は修正済み採点コードで新規実行した生データ（results）。
+    """
+    accs = []
+    for tag, regraded in tags:
+        s = load_summary(tag, regraded=regraded)
+        x = s.get(model)
+        if x and x.get("accuracy") is not None and (x.get("errors", 0) or 0) == 0:
+            accs.append(x["accuracy"])
+    if not accs:
+        return None
+    return {
+        "mean": sum(accs) / len(accs),
+        "min": min(accs),
+        "max": max(accs),
+        "n_runs": len(accs),
+    }
+
+
 def pct(x):
     return f"{x*100:.1f}%"
 
 
 def yen(usd):
     return f"¥{usd*JPY_PER_USD:.2f}"
+
+
+def usd_yen(usd):
+    """本文用: ドルと円を併記して単位の混在をなくす。"""
+    return f"${usd:.4f}（≒¥{usd*JPY_PER_USD:.2f}）"
 
 
 def esc(s):
@@ -145,6 +172,66 @@ def main():
     svg_parts.append('</svg>')
     gap_chart = "".join(svg_parts)
 
+    # 精度×コストの散布図（横軸=1問あたりコスト・対数、縦軸=RAG正解率）
+    # 「安くて十分」を1枚で判断できるようにする。CSP-safe（style=は使わない）。
+    import math
+    pts = []
+    for mid, label in ORDER:
+        r = rag.get(mid, {})
+        acc = r.get("accuracy")
+        cost = r.get("cost_per_task_usd")
+        if acc is None or not cost:
+            continue
+        pts.append((cost, acc, label))
+    if pts:
+        sc_w, sc_h = 560, 340
+        ml, mr, mt, mb = 58, 130, 24, 44  # 左・右・上・下マージン（右はラベル用）
+        pw, ph = sc_w - ml - mr, sc_h - mt - mb
+        costs = [p[0] for p in pts]
+        lo = math.log10(min(costs)) - 0.15
+        hi = math.log10(max(costs)) + 0.15
+        ylo, yhi = 0.55, 1.02
+
+        def sx(c):
+            return ml + pw * (math.log10(c) - lo) / (hi - lo)
+
+        def sy(a):
+            return mt + ph * (1 - (a - ylo) / (yhi - ylo))
+
+        sc = [
+            f'<svg viewBox="0 0 {sc_w} {sc_h}" width="{sc_w}" height="{sc_h}" role="img" '
+            f'aria-label="精度とコストの散布図（横軸コスト・縦軸RAG正解率）" '
+            f'font-family="sans-serif" font-size="11">'
+        ]
+        # 横グリッド（正解率 60/70/80/90/100%）
+        for tick in (60, 70, 80, 90, 100):
+            y = sy(tick / 100)
+            sc.append(
+                f'<line x1="{ml}" y1="{y:.1f}" x2="{ml + pw}" y2="{y:.1f}" stroke="#e3e8ee" stroke-width="1"></line>'
+                f'<text x="{ml - 6}" y="{y + 3:.1f}" text-anchor="end" fill="#5a6675">{tick}%</text>'
+            )
+        # 縦グリッド（コスト $0.001 / $0.01）
+        for c in (0.001, 0.01):
+            x = sx(c)
+            sc.append(
+                f'<line x1="{x:.1f}" y1="{mt}" x2="{x:.1f}" y2="{mt + ph}" stroke="#e3e8ee" stroke-width="1"></line>'
+                f'<text x="{x:.1f}" y="{mt + ph + 16}" text-anchor="middle" fill="#5a6675">${c:g}</text>'
+            )
+        # 軸ラベル
+        sc.append(f'<text x="{ml + pw / 2:.1f}" y="{sc_h - 6}" text-anchor="middle" fill="#5a6675">1問あたりコスト（対数）</text>')
+        # 点とラベル（右側にモデル名、重なりを避けるため y を少しずらす）
+        for cost, acc, label in pts:
+            x, y = sx(cost), sy(acc)
+            sc.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="4.5" fill="#2f6fb0"></circle>')
+            sc.append(
+                f'<text x="{x + 8:.1f}" y="{y + 3:.1f}" fill="#1f2a36">{esc(label)} '
+                f'<tspan fill="#5a6675">{pct(acc)}</tspan></text>'
+            )
+        sc.append('</svg>')
+        scatter_chart = "".join(sc)
+    else:
+        scatter_chart = ""
+
     # per-kind マトリクス（RAG）公開モデルのみ
     kind_head = "".join(f"<th>{esc(lbl)}</th>" for _, lbl in KIND_LABEL)
     kind_rows = []
@@ -167,6 +254,16 @@ def main():
     for tag, d in [("cn-rag", cn1), ("cn-rag2", cn2)]:
         for mid, x in d.items():
             others.append((x["accuracy"], mid))
+    # Claude系（503復旧後に測定できた場合のみ）
+    claude = load_summary("claude-rag", regraded=False)
+    CLAUDE_LABEL = {
+        "anthropic/claude-haiku-4.5": "Claude Haiku 4.5",
+        "anthropic/claude-sonnet-4.5": "Claude Sonnet 4.5",
+        "anthropic/claude-sonnet-5": "Claude Sonnet 5",
+    }
+    for mid, x in claude.items():
+        if x.get("accuracy") is not None and (x.get("errors", 0) or 0) < (x.get("n", 1) or 1):
+            others.append((x["accuracy"], CLAUDE_LABEL.get(mid, mid)))
     others.sort(reverse=True)
     other_rows = "\n".join(
         f'<tr><td>{esc(m)}</td><td class="num">{pct(acc)}</td></tr>'
@@ -276,6 +373,28 @@ def main():
     nano_base = base.get("openai/gpt-5.4-nano", {}).get("accuracy")
     nano_old = 0.931  # 旧採点での公開値（注記用）
 
+    # 分散測定（Nano/Luna/Gemini2.5 の 3回: rag + rag-var2 + rag-var3）
+    VAR_MODELS = [
+        ("openai/gpt-5.4-nano", "GPT-5.4 Nano"),
+        ("openai/gpt-5.6-luna", "GPT-5.6 Luna"),
+        ("gemini-2.5-flash", "Gemini 2.5 Flash"),
+    ]
+    var_tags = [("rag", True), ("rag-var2", False), ("rag-var3", False)]
+    var_rows = []
+    var_available = False
+    for mid, label in VAR_MODELS:
+        v = variance(var_tags, mid)
+        if v and v["n_runs"] >= 2:
+            var_available = True
+            spread = (v["max"] - v["min"]) * 100
+            var_rows.append(
+                f'<tr><td>{esc(label)}</td>'
+                f'<td class="num">{pct(v["mean"])}</td>'
+                f'<td class="num">{pct(v["min"])}〜{pct(v["max"])}</td>'
+                f'<td class="num">±{spread/2:.1f}pt（{v["n_runs"]}回）</td></tr>'
+            )
+    var_table = "\n".join(var_rows)
+
     page = f"""<!doctype html>
 <html lang="ja">
 <head>
@@ -318,8 +437,17 @@ def main():
   </div>
   <p class="note">下のグラフは各モデルの<strong>条文なし（薄灰）</strong>と<strong>RAG＝条文を渡す（青）</strong>の正解率です。横軸は0〜100%。</p>
   <div class="btable-wrap">{gap_chart}</div>
+  <p class="note">こちらは<strong>精度とコストの関係</strong>です。横軸は1問あたりコスト（対数）、縦軸はRAG正解率。<strong>左上（安くて高精度）ほど実務向き</strong>で、GPT-5.4 Nano と GPT-5.6 Luna が効率的な位置にあります。Gemini 2.5 Flash は精度99.0%を2倍弱のコストで、GPT-5.5 は最高精度99.5%を約10倍のコストで買う形です。</p>
+  <div class="btable-wrap">{scatter_chart}</div>
   <p>7種の内訳は 数値穴埋め23 / 条文同定27 / 建蔽率30 / 容積率30 / 採光補正係数40 / 誤り検出23 / 応用計算30。</p>
   <p class="note">上位の差（99.0% と 99.5% など）は<strong>1回測定のノイズ域</strong>です。同じモデルを再測定すると ±1pt 程度は動きます（例: GPT-5.4 Nano は 95.6% → 96.5%）。順位のわずかな差ではなく「条文を渡すと大きく伸びる」という段差を見てください。</p>
+  {"" if not var_available else '''<p class="note"><strong>主要3モデルは同一設定で3回ずつ測定しました。</strong>平均と振れ幅は次のとおりで、上位の差がノイズ域であることが数値で確認できます。</p>
+  <div class="btable-wrap">
+  <table class="btable">
+    <tr><th>モデル</th><th>平均（3回）</th><th>範囲</th><th>振れ幅</th></tr>
+    ''' + var_table + '''
+  </table>
+  </div>'''}
   <p class="note"><strong>Qwen3.5 Flash の 61.1% は能力値ではなく下限です。</strong>この測定では応答が極端に短く終わる設問が多く（出力トークン中央値6、うち130問が10トークン以下）、その短い即答群の正答率は49%でした。同じモデルを再測定すると 91.6%（中央値3501）まで戻ります。短い応答が正常終了（finish=stop）として返る挙動で、原因の特定は上流事業者側の確認待ちですが、少なくとも「モデルの実力が61%」ではありません。公平のため、この値は「実行時の出力欠損を含む下限」として読んでください。</p>
 
   <h2>種別ごとの弱点（RAG時・正解数/問題数）</h2>
@@ -364,7 +492,7 @@ def main():
     {other_rows}
   </table>
   </div>
-  <p class="note">Qwen3.8 Max は203/203（100.0%）ですが、1問あたり約 $0.010 で Gemini 3.5 Flash（$0.0052）より高く（GPT-5.5 の $0.0245 よりは安い）、1回測定で分散も未測定のため、コスト・再現性の判断材料がそろうまで推奨には含めていません。数値は参考として掲載します。</p>
+  <p class="note">Qwen3.8 Max は203/203（100.0%）ですが、1問あたり約 {usd_yen(0.009955)} で Gemini 3.5 Flash（{usd_yen(0.005167)}）より高く（GPT-5.5 の {usd_yen(0.02454)} よりは安い）、1回測定で分散も未測定のため、コスト・再現性の判断材料がそろうまで推奨には含めていません。数値は参考として掲載します。</p>
 
     <h2>失敗例（正直に抜粋）</h2>
   <p>成功例だけを見ると実力を過大評価します。ここでは実際に外した例を、途中式ごと載せます。<strong>安さの前に再現性と正しさが必要</strong>という教訓の実物です。</p>
@@ -395,10 +523,19 @@ def main():
   <ol>
     <li><strong>貼る条文を決める。</strong>建蔽率は法第53条、容積率は法第52条第1項・第2項、採光補正係数は令第20条、天空率は令第135条の5〜第135条の9（前面道路が2本なら令第132条も）。e-Gov法令検索で条文そのものを開き、質問に貼ってください。条例・告示・特定行政庁の取り扱いは、各自治体の例規集（「◯◯市 建築基準法施行条例」で検索）で別に確認します。</li>
     <li><strong>計算はエンジンに渡す。</strong>容積率・建蔽率・採光・天空率のような計算は、LLMに式を解かせず、条文の式をコードにした計算エンジンやツールに渡します（上の表のとおり満点に近づきます）。このベンチマークの法規エンジン（条文の式をコード化した参照実装）と採点コードは <code>github.com/yukihamada/kenchiku-bench</code> で公開しています。まずは手元でエンジンを回し、同じ条件で計算できることを確かめてから業務に組み込んでください。</li>
-    <li><strong>モデルは用途で選ぶ。</strong>コスト最優先なら GPT-5.4 Nano（1問 $0.0014・95.6%）、バランスなら GPT-5.6 Luna（$0.0022・98.0%）、最高精度なら Gemini 2.5 Flash（$0.0028・99.0%）か GPT-5.5（$0.0245・99.5%）。1問あたりのコストはこの10倍以上の差があるので、精度の頭打ち（99%前後）を踏まえると、実務では Nano〜Luna で十分な場面が多いはずです。用途別には、採光中心なら Luna の採光37/40を避けて Nano（40/40）か Gemini（40/40）、応用計算中心なら Nano の応用26/30に注意して Gemini 3.5 Flash か GPT-5.5（30/30）を選ぶ、という形で種別表と突き合わせてください。</li>
+    <li><strong>モデルは用途で選ぶ。</strong>コスト最優先なら GPT-5.4 Nano（1問 {usd_yen(nano.get("cost_per_task_usd",0))}・{pct(nano.get("accuracy",0))}）、バランスなら GPT-5.6 Luna（{usd_yen(luna.get("cost_per_task_usd",0))}・{pct(luna.get("accuracy",0))}）、最高精度なら Gemini 2.5 Flash（{usd_yen(rag.get("gemini-2.5-flash",{}).get("cost_per_task_usd",0))}・{pct(rag.get("gemini-2.5-flash",{}).get("accuracy",0))}）か GPT-5.5（{usd_yen(rag.get("openai/gpt-5.5",{}).get("cost_per_task_usd",0))}・{pct(rag.get("openai/gpt-5.5",{}).get("accuracy",0))}）。1問あたりのコストはこの10倍以上の差があるので、精度の頭打ち（99%前後）を踏まえると、実務では Nano〜Luna で十分な場面が多いはずです。用途別には、採光中心なら Luna の採光37/40を避けて Nano（40/40）か Gemini（40/40）、応用計算中心なら Nano の応用26/30に注意して Gemini 3.5 Flash か GPT-5.5（30/30）を選ぶ、という形で種別表と突き合わせてください。</li>
   </ol>
 
-  <h2>teai.io で試す</h2>
+  <h2>確認申請前セルフチェックの実務フロー（1画面で回す例）</h2>
+  <p>実際の確認申請前チェックは、次の順で回すと取りこぼしが減ります。<strong>条文RAGで根拠を引き、計算はエンジンに渡す</strong>の繰り返しです。</p>
+  <ol>
+    <li><strong>容積率（法第52条）:</strong> 用途地域・都市計画容積率・前面道路幅を入れる。前面道路が12m未満なら幅員制限を計算し、都市計画値と<strong>小さい方</strong>を採る（→ 法規エンジン <code>far</code>）。</li>
+    <li><strong>建蔽率（法第53条）:</strong> 用途地域の基本値に、角地・防火地域の緩和を適用する（→ エンジン <code>bcr</code>）。</li>
+    <li><strong>採光（令第20条）:</strong> 用途地域係数×D/H−1.0 → 縁側補正×0.7 → 3.0上限、の順で計算する（→ エンジン <code>daylight</code>）。順序を逆にすると誤る（失敗例 day-020 参照）。</li>
+    <li><strong>天空率（令第135条の5〜9）:</strong> 手計算は非現実的なので、計算ツールに測定点を渡して判定する（→ <code>sky_tool.py</code>）。</li>
+    <li><strong>根拠の確認:</strong> 各ステップの条番号を e-Gov で開き、条例・告示・特定行政庁の取り扱いを自治体の例規集で別途確認する。</li>
+  </ol>
+  <p class="note">この5ステップのうち1〜4は、条文の式をコード化した法規エンジンで満点相当まで安定します（上のエンジン表）。LLMは「どの条文を見るべきか」「この条件は該当するか」の整理役に使い、数値の確定はエンジンに任せるのが、実務で最も事故が少ない分担です。</p>
   <p>この実測は teai.io 経由で行いました。同じ条文RAGを次の3通りで試せます。</p>
   <ul>
     <li>CLI: <code>te kenchiku "採光補正係数の計算方法は？"</code>（建築基準法・同施行令・同施行規則の条文RAG付きQ&amp;A）</li>
@@ -411,7 +548,7 @@ def main():
   <p class="note">いずれもβです。出力は一般的な参考情報であり、実際の設計・確認申請は建築士・特定行政庁にご確認ください。</p>
 
   <h2>正直な限界</h2>
-  <p>各モデル1回・temperature 0なので分散は測れていません（一部モデルは同一設定で2回測り、数pt振れました）。問題は法令の本則テキストから機械的に作れる範囲に限られ、通達・条例・運用・特定行政庁の判断は入っていません。条例・告示はe-Govの法令APIでは取得できないため、各自治体の例規集で別途確認してください。実務の適法性判断をこのベンチマークの点数で代替することはできません。Claude系はゲートウェイ上流の503が続き測定できず、表から除外しています（当方の実装起因ではありません）。測定可能になり次第追記します。</p>
+  <p>{('主要3モデルは同一設定で3回ずつ測り、振れ幅を上の表に示しました（残りは1回）。' if var_available else '各モデル1回・temperature 0なので分散は測れていません（一部モデルは同一設定で2回測り、数pt振れました）。')}問題は法令の本則テキストから機械的に作れる範囲に限られ、通達・条例・運用・特定行政庁の判断は入っていません。条例・告示はe-Govの法令APIでは取得できないため、各自治体の例規集で別途確認してください。実務の適法性判断をこのベンチマークの点数で代替することはできません。{('Claude系は上流の503が復旧したため測定し、上の「他のモデル」表に追記しました。' if claude else 'Claude系はゲートウェイ上流の503が続き測定できず、表から除外しています（当方の実装起因ではありません）。測定可能になり次第追記します。')}</p>
 
   <div class="disclosure">
     開示: この実測はShitate（株式会社イネブラ）が自社ゲートウェイteai.io経由で実施しました。teai.ioは比較対象モデルの一部を再販しています。問題セット・採点コード・生ログは github.com/yukihamada/kenchiku-bench で公開しています。円換算は1ドル={JPY_PER_USD}円で統一しています。スコアは2026-11-09時点・API経由の挙動であり、各モデルの能力の恒久的な評価ではありません。本ページは一般的な情報提供であり、個別の建築確認・法適合性の判断ではありません。モデル名は各社の商標です。

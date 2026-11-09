@@ -1,0 +1,137 @@
+[
+ {
+  "model": "openai/gpt-5.4-nano",
+  "n": 203,
+  "accuracy": 0.9754,
+  "accuracy_answered": 0.9754,
+  "errors": 0,
+  "latency_median_s": 4.689,
+  "latency_p90_s": 10.23,
+  "cost_total_usd": 0.2817,
+  "cost_per_task_usd": 0.001388,
+  "prompt_tokens_median": 3383,
+  "by_kind": {
+   "applied": {
+    "n": 30,
+    "accuracy": 0.967
+   },
+   "calc_bcr": {
+    "n": 30,
+    "accuracy": 1.0
+   },
+   "calc_daylight": {
+    "n": 40,
+    "accuracy": 1.0
+   },
+   "calc_far": {
+    "n": 30,
+    "accuracy": 0.967
+   },
+   "cite": {
+    "n": 27,
+    "accuracy": 1.0
+   },
+   "false_claim": {
+    "n": 23,
+    "accuracy": 0.913
+   },
+   "numeric": {
+    "n": 23,
+    "accuracy": 0.957
+   }
+  },
+  "wall_s": 395.6,
+  "rag": true,
+  "tools": false
+ },
+ {
+  "model": "openai/gpt-5.6-luna",
+  "n": 203,
+  "accuracy": 0.9754,
+  "accuracy_answered": 0.9754,
+  "errors": 0,
+  "latency_median_s": 3.576,
+  "latency_p90_s": 5.191,
+  "cost_total_usd": 0.442637,
+  "cost_per_task_usd": 0.00218,
+  "prompt_tokens_median": 3383,
+  "by_kind": {
+   "applied": {
+    "n": 30,
+    "accuracy": 0.9
+   },
+   "calc_bcr": {
+    "n": 30,
+    "accuracy": 0.967
+   },
+   "calc_daylight": {
+    "n": 40,
+    "accuracy": 0.975
+   },
+   "calc_far": {
+    "n": 30,
+    "accuracy": 1.0
+   },
+   "cite": {
+    "n": 27,
+    "accuracy": 1.0
+   },
+   "false_claim": {
+    "n": 23,
+    "accuracy": 1.0
+   },
+   "numeric": {
+    "n": 23,
+    "accuracy": 1.0
+   }
+  },
+  "wall_s": 248.2,
+  "rag": true,
+  "tools": false
+ },
+ {
+  "model": "gemini-2.5-flash",
+  "n": 203,
+  "accuracy": 0.9901,
+  "accuracy_answered": 0.9901,
+  "errors": 0,
+  "latency_median_s": 5.057,
+  "latency_p90_s": 7.952,
+  "cost_total_usd": 0.544731,
+  "cost_per_task_usd": 0.002683,
+  "prompt_tokens_median": 2391,
+  "by_kind": {
+   "applied": {
+    "n": 30,
+    "accuracy": 0.967
+   },
+   "calc_bcr": {
+    "n": 30,
+    "accuracy": 0.967
+   },
+   "calc_daylight": {
+    "n": 40,
+    "accuracy": 1.0
+   },
+   "calc_far": {
+    "n": 30,
+    "accuracy": 1.0
+   },
+   "cite": {
+    "n": 27,
+    "accuracy": 1.0
+   },
+   "false_claim": {
+    "n": 23,
+    "accuracy": 1.0
+   },
+   "numeric": {
+    "n": 23,
+    "accuracy": 1.0
+   }
+  },
+  "wall_s": 353.8,
+  "rag": true,
+  "tools": false
+ }
+]
