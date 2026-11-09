@@ -287,6 +287,8 @@ def chat(model: str, messages: list[dict], max_tokens: int = 2500,
     }
     if tools:
         payload["tools"] = tools
+    if os.environ.get("NO_THINK"):
+        payload["chat_template_kwargs"] = {"enable_thinking": False}
     body = json.dumps(payload).encode()
     last = None
     for attempt in range(retries):
@@ -302,7 +304,7 @@ def chat(model: str, messages: list[dict], max_tokens: int = 2500,
             msg = j["choices"][0]["message"]
             return {
                 "msg": msg,
-                "text": msg.get("content") or "",
+                "text": msg.get("content") or msg.get("reasoning") or "",
                 "usage": j.get("usage", {}),
                 "latency_s": dt,
                 "finish": j["choices"][0].get("finish_reason"),

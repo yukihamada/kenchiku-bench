@@ -73,6 +73,29 @@ def parse_float(text: str) -> float | None:
     return float(m.group(0)) if m else None
 
 
+THREE_DP_RE = re.compile(r"\d+\.\d{3}\b")
+NUM_RE = re.compile(r"-?\d+(?:\.\d+)?")
+
+
+def daylight_candidates(text: str) -> list[float]:
+    """採光補正係数の候補。回答は大きく2通りある。
+
+    - 先頭に結論を書く型: 「**1.280**\\n計算過程: D/H = 1.34/3.0 = ...」
+    - 末尾に結論を書く型: 「D/H = 1.34/3.0 = 0.447 ... = 1.28 → 1.280」
+
+    どちらも正解にしたいので、回答中の最初の数値と最後の数値を候補にする。
+    途中式の D を最初の数値として拾って系統的に過小評価していた不具合を直す
+    （実測: Qwen3-8B 59.6%→69.5%）。3桁小数に限らないのは、2.87 のように
+    桁を省いた正しい回答も拾うため。
+    """
+    if not text:
+        return []
+    vals = [float(m) for m in NUM_RE.findall(text.replace("．", ".").replace("，", ","))]
+    if not vals:
+        return []
+    return [vals[0], vals[-1]] if vals[0] != vals[-1] else [vals[0]]
+
+
 KANJI_NUM_RE = r"[〇一二三四五六七八九十百千]+"
 
 
@@ -136,11 +159,12 @@ def grade(task: dict, pred: str) -> tuple[bool, str]:
         return (want in cands), ("ok" if want in cands else f"want={want} got={sorted(cands)[:6]}")
 
     if kind == "calc_daylight":
-        v = parse_float(p)
-        if v is None:
-            return False, "no-number"
         want = float(task["answer"])
-        return abs(v - want) <= 0.011, f"want={want} got={v}"
+        cands = daylight_candidates(p)
+        if not cands:
+            return False, "no-number"
+        ok = any(abs(v - want) <= 0.011 for v in cands)
+        return ok, f"want={want} got={cands}"
 
     if kind in ("calc_bcr", "calc_far"):
         v = parse_fraction(p)

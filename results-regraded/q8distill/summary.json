@@ -1,0 +1,42 @@
+[
+ {
+  "model": "mlx-community/Qwen3-8B-4bit",
+  "n": 203,
+  "accuracy": 0.6847,
+  "errors": 0,
+  "latency_median_s": 13.019,
+  "cost_per_task_usd": 0.0,
+  "by_kind": {
+   "applied": {
+    "n": 30,
+    "accuracy": 0.667
+   },
+   "calc_bcr": {
+    "n": 30,
+    "accuracy": 0.433
+   },
+   "calc_daylight": {
+    "n": 40,
+    "accuracy": 0.425
+   },
+   "calc_far": {
+    "n": 30,
+    "accuracy": 0.8
+   },
+   "cite": {
+    "n": 27,
+    "accuracy": 0.963
+   },
+   "false_claim": {
+    "n": 23,
+    "accuracy": 0.783
+   },
+   "numeric": {
+    "n": 23,
+    "accuracy": 0.913
+   }
+  },
+  "regraded": 17,
+  "skipped_truncated": 0
+ }
+]

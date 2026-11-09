@@ -1,0 +1,42 @@
+[
+ {
+  "model": "openai/gpt-5.4-nano",
+  "n": 203,
+  "accuracy": 0.9655,
+  "errors": 0,
+  "latency_median_s": 4.407,
+  "cost_per_task_usd": 0.00137,
+  "by_kind": {
+   "applied": {
+    "n": 30,
+    "accuracy": 0.933
+   },
+   "calc_bcr": {
+    "n": 30,
+    "accuracy": 1.0
+   },
+   "calc_daylight": {
+    "n": 40,
+    "accuracy": 0.975
+   },
+   "calc_far": {
+    "n": 30,
+    "accuracy": 0.967
+   },
+   "cite": {
+    "n": 27,
+    "accuracy": 0.926
+   },
+   "false_claim": {
+    "n": 23,
+    "accuracy": 0.957
+   },
+   "numeric": {
+    "n": 23,
+    "accuracy": 1.0
+   }
+  },
+  "regraded": 1,
+  "skipped_truncated": 0
+ }
+]

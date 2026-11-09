@@ -46,6 +46,14 @@ def main() -> int:
     check("採光補正係数 住居系", abs(daylight_coefficient("第一種住居地域", 3.0, 3.0, True) - 3.0) < 1e-9)
     check("容積率 前面道路", far_limit("第一種住居地域", 5.0, 10.0) == 4.0)
 
+    # 4b. 採光の採点は「結論の小数第3位」を見る（途中式の D を拾わない）
+    day = next(t for t in TASKS.values() if t["kind"] == "calc_daylight")
+    ans = float(day["answer"])
+    check("採光: 先頭に結論", grade(day, f"**{ans:.3f}**\n\n計算過程: D/H = 1.34/3.0 = 0.447")[0])
+    check("採光: 末尾に結論", grade(day, f"D/H = 1.34/3.0 = 0.447\n算定値 = 0.447×6.0-1.4 = 1.28\n{ans:.3f}")[0])
+    wrong = ans + 0.5
+    check("採光: 途中式の数値では通さない", not grade(day, f"D = {wrong:.3f} m\n答えは別の値")[0])
+
     # 5. 検索: 明示参照した条文がコンテキストに入る
     arts = load_articles()
     r = Retriever(arts)

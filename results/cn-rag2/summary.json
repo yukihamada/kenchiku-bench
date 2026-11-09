@@ -1,0 +1,272 @@
+[
+ {
+  "model": "z-ai/glm-5.3",
+  "n": 203,
+  "accuracy": 0.8916,
+  "accuracy_answered": 0.8916,
+  "errors": 0,
+  "latency_median_s": 1.471,
+  "latency_p90_s": 2.56,
+  "cost_total_usd": 0.072013,
+  "cost_per_task_usd": 0.000355,
+  "prompt_tokens_median": 3056,
+  "by_kind": {
+   "applied": {
+    "n": 30,
+    "accuracy": 0.833
+   },
+   "calc_bcr": {
+    "n": 30,
+    "accuracy": 0.8
+   },
+   "calc_daylight": {
+    "n": 40,
+    "accuracy": 0.95
+   },
+   "calc_far": {
+    "n": 30,
+    "accuracy": 0.7
+   },
+   "cite": {
+    "n": 27,
+    "accuracy": 1.0
+   },
+   "false_claim": {
+    "n": 23,
+    "accuracy": 1.0
+   },
+   "numeric": {
+    "n": 23,
+    "accuracy": 1.0
+   }
+  },
+  "wall_s": 56.2,
+  "rag": true,
+  "tools": false
+ },
+ {
+  "model": "z-ai/glm-5.3-flash",
+  "n": 203,
+  "accuracy": 0.8424,
+  "accuracy_answered": 0.8424,
+  "errors": 0,
+  "latency_median_s": 4.15,
+  "latency_p90_s": 7.059,
+  "cost_total_usd": 0.016073,
+  "cost_per_task_usd": 7.9e-05,
+  "prompt_tokens_median": 3073,
+  "by_kind": {
+   "applied": {
+    "n": 30,
+    "accuracy": 0.867
+   },
+   "calc_bcr": {
+    "n": 30,
+    "accuracy": 0.9
+   },
+   "calc_daylight": {
+    "n": 40,
+    "accuracy": 0.75
+   },
+   "calc_far": {
+    "n": 30,
+    "accuracy": 0.5
+   },
+   "cite": {
+    "n": 27,
+    "accuracy": 1.0
+   },
+   "false_claim": {
+    "n": 23,
+    "accuracy": 1.0
+   },
+   "numeric": {
+    "n": 23,
+    "accuracy": 1.0
+   }
+  },
+  "wall_s": 157.4,
+  "rag": true,
+  "tools": false
+ },
+ {
+  "model": "moonshotai/kimi-k3",
+  "n": 203,
+  "accuracy": 0.9951,
+  "accuracy_answered": 0.9951,
+  "errors": 0,
+  "latency_median_s": 3.883,
+  "latency_p90_s": 8.493,
+  "cost_total_usd": 0.996705,
+  "cost_per_task_usd": 0.00491,
+  "prompt_tokens_median": 3405,
+  "by_kind": {
+   "applied": {
+    "n": 30,
+    "accuracy": 0.967
+   },
+   "calc_bcr": {
+    "n": 30,
+    "accuracy": 1.0
+   },
+   "calc_daylight": {
+    "n": 40,
+    "accuracy": 1.0
+   },
+   "calc_far": {
+    "n": 30,
+    "accuracy": 1.0
+   },
+   "cite": {
+    "n": 27,
+    "accuracy": 1.0
+   },
+   "false_claim": {
+    "n": 23,
+    "accuracy": 1.0
+   },
+   "numeric": {
+    "n": 23,
+    "accuracy": 1.0
+   }
+  },
+  "wall_s": 161.9,
+  "rag": true,
+  "tools": false
+ },
+ {
+  "model": "moonshotai/kimi-k3.1-pro",
+  "n": 203,
+  "accuracy": 0.931,
+  "accuracy_answered": 0.931,
+  "errors": 0,
+  "latency_median_s": 2.902,
+  "latency_p90_s": 6.13,
+  "cost_total_usd": null,
+  "cost_per_task_usd": null,
+  "prompt_tokens_median": 3406,
+  "by_kind": {
+   "applied": {
+    "n": 30,
+    "accuracy": 0.8
+   },
+   "calc_bcr": {
+    "n": 30,
+    "accuracy": 0.967
+   },
+   "calc_daylight": {
+    "n": 40,
+    "accuracy": 1.0
+   },
+   "calc_far": {
+    "n": 30,
+    "accuracy": 0.767
+   },
+   "cite": {
+    "n": 27,
+    "accuracy": 1.0
+   },
+   "false_claim": {
+    "n": 23,
+    "accuracy": 1.0
+   },
+   "numeric": {
+    "n": 23,
+    "accuracy": 1.0
+   }
+  },
+  "wall_s": 123.7,
+  "rag": true,
+  "tools": false
+ },
+ {
+  "model": "minimax/minimax-m3",
+  "n": 203,
+  "accuracy": 0.9557,
+  "accuracy_answered": 0.9557,
+  "errors": 0,
+  "latency_median_s": 9.202,
+  "latency_p90_s": 22.965,
+  "cost_total_usd": null,
+  "cost_per_task_usd": null,
+  "prompt_tokens_median": 2279,
+  "by_kind": {
+   "applied": {
+    "n": 30,
+    "accuracy": 0.833
+   },
+   "calc_bcr": {
+    "n": 30,
+    "accuracy": 1.0
+   },
+   "calc_daylight": {
+    "n": 40,
+    "accuracy": 0.975
+   },
+   "calc_far": {
+    "n": 30,
+    "accuracy": 0.967
+   },
+   "cite": {
+    "n": 27,
+    "accuracy": 0.926
+   },
+   "false_claim": {
+    "n": 23,
+    "accuracy": 1.0
+   },
+   "numeric": {
+    "n": 23,
+    "accuracy": 1.0
+   }
+  },
+  "wall_s": 440.3,
+  "rag": true,
+  "tools": false
+ },
+ {
+  "model": "qwen/qwen3.8-2.4t-a95b",
+  "n": 203,
+  "accuracy": 0.9803,
+  "accuracy_answered": 0.9803,
+  "errors": 0,
+  "latency_median_s": 4.855,
+  "latency_p90_s": 17.71,
+  "cost_total_usd": 2.570042,
+  "cost_per_task_usd": 0.01266,
+  "prompt_tokens_median": 3056,
+  "by_kind": {
+   "applied": {
+    "n": 30,
+    "accuracy": 0.933
+   },
+   "calc_bcr": {
+    "n": 30,
+    "accuracy": 0.967
+   },
+   "calc_daylight": {
+    "n": 40,
+    "accuracy": 1.0
+   },
+   "calc_far": {
+    "n": 30,
+    "accuracy": 1.0
+   },
+   "cite": {
+    "n": 27,
+    "accuracy": 0.963
+   },
+   "false_claim": {
+    "n": 23,
+    "accuracy": 1.0
+   },
+   "numeric": {
+    "n": 23,
+    "accuracy": 1.0
+   }
+  },
+  "wall_s": 365.4,
+  "rag": true,
+  "tools": false
+ }
+]

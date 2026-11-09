@@ -1,0 +1,162 @@
+[
+ {
+  "model": "deepseek/deepseek-v4-flash",
+  "n": 203,
+  "accuracy": 0.7094,
+  "errors": 0,
+  "latency_median_s": 1.208,
+  "cost_per_task_usd": 0.000697,
+  "by_kind": {
+   "applied": {
+    "n": 30,
+    "accuracy": 0.633
+   },
+   "calc_bcr": {
+    "n": 30,
+    "accuracy": 0.567
+   },
+   "calc_daylight": {
+    "n": 40,
+    "accuracy": 0.525
+   },
+   "calc_far": {
+    "n": 30,
+    "accuracy": 0.7
+   },
+   "cite": {
+    "n": 27,
+    "accuracy": 0.741
+   },
+   "false_claim": {
+    "n": 23,
+    "accuracy": 1.0
+   },
+   "numeric": {
+    "n": 23,
+    "accuracy": 1.0
+   }
+  },
+  "regraded": 0,
+  "skipped_truncated": 0
+ },
+ {
+  "model": "deepseek/deepseek-v4-pro",
+  "n": 203,
+  "accuracy": 0.9507,
+  "errors": 0,
+  "latency_median_s": 10.165,
+  "cost_per_task_usd": 0.003619,
+  "by_kind": {
+   "applied": {
+    "n": 30,
+    "accuracy": 0.933
+   },
+   "calc_bcr": {
+    "n": 30,
+    "accuracy": 0.967
+   },
+   "calc_daylight": {
+    "n": 40,
+    "accuracy": 0.975
+   },
+   "calc_far": {
+    "n": 30,
+    "accuracy": 0.967
+   },
+   "cite": {
+    "n": 27,
+    "accuracy": 0.815
+   },
+   "false_claim": {
+    "n": 23,
+    "accuracy": 1.0
+   },
+   "numeric": {
+    "n": 23,
+    "accuracy": 1.0
+   }
+  },
+  "regraded": 0,
+  "skipped_truncated": 0
+ },
+ {
+  "model": "qwen/qwen3.8-flash",
+  "n": 203,
+  "accuracy": 0.9606,
+  "errors": 0,
+  "latency_median_s": 5.015,
+  "cost_per_task_usd": 0.000869,
+  "by_kind": {
+   "applied": {
+    "n": 30,
+    "accuracy": 0.867
+   },
+   "calc_bcr": {
+    "n": 30,
+    "accuracy": 1.0
+   },
+   "calc_daylight": {
+    "n": 40,
+    "accuracy": 0.9
+   },
+   "calc_far": {
+    "n": 30,
+    "accuracy": 1.0
+   },
+   "cite": {
+    "n": 27,
+    "accuracy": 1.0
+   },
+   "false_claim": {
+    "n": 23,
+    "accuracy": 1.0
+   },
+   "numeric": {
+    "n": 23,
+    "accuracy": 1.0
+   }
+  },
+  "regraded": 0,
+  "skipped_truncated": 0
+ },
+ {
+  "model": "qwen/qwen3.8-max",
+  "n": 203,
+  "accuracy": 1.0,
+  "errors": 0,
+  "latency_median_s": 15.885,
+  "cost_per_task_usd": 0.009955,
+  "by_kind": {
+   "applied": {
+    "n": 30,
+    "accuracy": 1.0
+   },
+   "calc_bcr": {
+    "n": 30,
+    "accuracy": 1.0
+   },
+   "calc_daylight": {
+    "n": 40,
+    "accuracy": 1.0
+   },
+   "calc_far": {
+    "n": 30,
+    "accuracy": 1.0
+   },
+   "cite": {
+    "n": 27,
+    "accuracy": 1.0
+   },
+   "false_claim": {
+    "n": 23,
+    "accuracy": 1.0
+   },
+   "numeric": {
+    "n": 23,
+    "accuracy": 1.0
+   }
+  },
+  "regraded": 0,
+  "skipped_truncated": 0
+ }
+]

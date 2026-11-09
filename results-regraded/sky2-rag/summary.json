@@ -1,0 +1,82 @@
+[
+ {
+  "model": "google/gemini-3.5-flash",
+  "n": 20,
+  "accuracy": 0.45,
+  "errors": 2,
+  "latency_median_s": 41.077,
+  "cost_per_task_usd": 0.041767,
+  "by_kind": {
+   "calc_sky_grade": {
+    "n": 10,
+    "accuracy": 0.0
+   },
+   "sky_points_2road": {
+    "n": 10,
+    "accuracy": 0.9
+   }
+  },
+  "regraded": 0,
+  "skipped_truncated": 0
+ },
+ {
+  "model": "openai/gpt-5.4-nano",
+  "n": 20,
+  "accuracy": 0.3,
+  "errors": 0,
+  "latency_median_s": 39.99,
+  "cost_per_task_usd": 0.006319,
+  "by_kind": {
+   "calc_sky_grade": {
+    "n": 10,
+    "accuracy": 0.0
+   },
+   "sky_points_2road": {
+    "n": 10,
+    "accuracy": 0.6
+   }
+  },
+  "regraded": 0,
+  "skipped_truncated": 0
+ },
+ {
+  "model": "openai/gpt-5.5",
+  "n": 20,
+  "accuracy": 0.0,
+  "errors": 20,
+  "latency_median_s": null,
+  "cost_per_task_usd": null,
+  "by_kind": {
+   "calc_sky_grade": {
+    "n": 10,
+    "accuracy": 0.0
+   },
+   "sky_points_2road": {
+    "n": 10,
+    "accuracy": 0.0
+   }
+  },
+  "regraded": 0,
+  "skipped_truncated": 0
+ },
+ {
+  "model": "openai/gpt-5.6-luna",
+  "n": 20,
+  "accuracy": 0.15,
+  "errors": 14,
+  "latency_median_s": 37.913,
+  "cost_per_task_usd": 0.009038,
+  "by_kind": {
+   "calc_sky_grade": {
+    "n": 10,
+    "accuracy": 0.1
+   },
+   "sky_points_2road": {
+    "n": 10,
+    "accuracy": 0.2
+   }
+  },
+  "regraded": 0,
+  "skipped_truncated": 0
+ }
+]
